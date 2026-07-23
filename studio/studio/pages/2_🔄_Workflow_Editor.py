@@ -9,7 +9,8 @@ from studio.helpers import (
     render_schema_form, 
     load_asset_data, 
     validate_and_save_asset,
-    get_relative_asset_paths
+    get_relative_asset_paths,
+    render_shared_list
 )
 from promptops.utils import ROOT, load_yaml
 
@@ -130,7 +131,7 @@ with wf_tabs[1]:
     show_tab_errors_wf("Workflow Steps")
     st.subheader("Workflow Steps & Visualizer")
     
-    for i, step in enumerate(st.session_state['wf_steps']):
+    def render_workflow_step_item(i, step):
         with st.expander(f"Step {i+1}: {step.get('step_id', 'Un-named')}", expanded=True):
             col1, col2 = st.columns(2)
             with col1:
@@ -214,15 +215,26 @@ with wf_tabs[1]:
                     selected_target = st.selectbox("Target", all_step_ids, index=target_idx if all_step_ids else 0, key=f"cond_tgt_{i}_{e_idx}")
                     st.session_state['wf_steps'][i]['next'][e_idx]["target"] = selected_target
 
-            col_btn1, col_btn2 = st.columns([8, 2])
-            with col_btn1:
-                if st.button("Add Branch", key=f"add_branch_{i}"):
-                    st.session_state['wf_steps'][i]['next'].append({"target": ""})
-                    st.rerun()
-            with col_btn2:
-                if st.button("Remove Step", key=f"del_step_{i}"):
-                    st.session_state['wf_steps'].pop(i)
-                    st.rerun()
+            if st.button("Add Branch", key=f"add_branch_{i}"):
+                st.session_state['wf_steps'][i]['next'].append({"target": ""})
+                st.rerun()
+
+    key_patterns = [
+        "step_id_{}",
+        "prompt_file_{}",
+        "map_{}_",
+        "cond_custom_{}_",
+        "cond_src_{}_",
+        "cond_op_{}_",
+        "cond_val_{}_",
+        "cond_tgt_{}_",
+    ]
+    render_shared_list(
+        session_state_key="wf_steps",
+        item_renderer=render_workflow_step_item,
+        key_patterns=key_patterns,
+        col_widths=[8.5, 1.5]
+    )
 
     if st.button("Add Step"):
         st.session_state['wf_steps'].append({"step_id": f"step_{len(st.session_state['wf_steps'])+1}", "prompt_file": prompt_files[0] if prompt_files else "", "map_inputs": {}})

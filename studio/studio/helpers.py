@@ -162,3 +162,126 @@ def validate_and_save_asset(
     except Exception as e:
         st.error(f"Error: {e}")
         return False
+
+
+def _get_all_matching_templates(indices: List[int], key_patterns: List[str]) -> List[str]:
+    """Finds all key templates currently present in session state for any of the given indices."""
+    import streamlit as st
+    templates = set()
+    for idx in indices:
+        for key in list(st.session_state.keys()):
+            for pattern in key_patterns:
+                if "{}" in pattern:
+                    prefix_part, suffix_part = pattern.split("{}", 1)
+                    if key.startswith(prefix_part):
+                        expected_prefix = prefix_part + str(idx)
+                        if key.startswith(expected_prefix):
+                            dynamic_suffix = key[len(expected_prefix):]
+                            # Make sure the dynamic suffix matches suffix_part if there is one
+                            if suffix_part == "" or dynamic_suffix.startswith(suffix_part):
+                                templates.add(prefix_part + "{}" + dynamic_suffix)
+                else:
+                    # Pattern is a simple prefix
+                    if key.startswith(f"{pattern}{idx}_") or key == f"{pattern}{idx}":
+                        suffix = key[len(f"{pattern}{idx}"):]
+                        templates.add(f"{pattern}{{}}{suffix}")
+    return list(templates)
+
+
+def _swap_session_keys(i: int, j: int, key_patterns: List[str]):
+    """Swaps keys in st.session_state matching format patterns for indices i and j."""
+    import streamlit as st
+    templates = _get_all_matching_templates([i, j], key_patterns)
+    for template in templates:
+        key_i = template.format(i)
+        key_j = template.format(j)
+        val_i = st.session_state.get(key_i, None)
+        val_j = st.session_state.get(key_j, None)
+        
+        if val_j is not None:
+            st.session_state[key_i] = val_j
+        elif key_i in st.session_state:
+            del st.session_state[key_i]
+            
+        if val_i is not None:
+            st.session_state[key_j] = val_i
+        elif key_j in st.session_state:
+            del st.session_state[key_j]
+
+
+def _delete_session_keys(i: int, length: int, key_patterns: List[str]):
+    """Shifts keys matching format patterns down when item at index i is deleted."""
+    import streamlit as st
+    # Find all templates for all possible indices in the list
+    templates = _get_all_matching_templates(list(range(length)), key_patterns)
+    
+    for idx in range(i, length - 1):
+        for template in templates:
+            key_curr = template.format(idx)
+            key_next = template.format(idx + 1)
+            if key_next in st.session_state:
+                st.session_state[key_curr] = st.session_state[key_next]
+            elif key_curr in st.session_state:
+                del st.session_state[key_curr]
+                
+    last_idx = length - 1
+    for template in templates:
+        key_last = template.format(last_idx)
+        if key_last in st.session_state:
+            del st.session_state[key_last]
+
+
+def render_shared_list(
+    session_state_key: str,
+    item_renderer: Callable[[int, Any], None],
+    key_patterns: List[str] = None,
+    col_widths: List[float] = [8.5, 1.5]
+) -> None:
+    """
+    Renders a unified sequence of list items with standard controls:
+    - Move Up (disabled for the first item)
+    - Move Down (disabled for the last item)
+    - Delete (standard delete button across editors)
+    
+    Ensures identical layout ratio and standard Streamlit styling.
+    Strictly manages order changes and deletion, leaving content editing/rendering to the item_renderer.
+    Automatically handles session state synchronization and triggers rerun.
+    """
+    import streamlit as st
+    items = st.session_state.get(session_state_key, [])
+    if not items:
+        return
+
+    if key_patterns is None:
+        key_patterns = []
+
+    for i in range(len(items)):
+        # Render standard columns layout for identical layout ratios across both editors
+        col_content, col_actions = st.columns(col_widths)
+        
+        with col_content:
+            item_renderer(i, items[i])
+            
+        with col_actions:
+            # Standard vertical spacing
+            st.write("") # creates slight top alignment spacing
+            
+            up_disabled = (i == 0)
+            down_disabled = (i == len(items) - 1)
+            
+            # Action buttons use unified, consistent plain-text labels and secondary button styles
+            if st.button("Move Up", key=f"move_up_{session_state_key}_{i}", disabled=up_disabled, use_container_width=True):
+                items[i], items[i-1] = items[i-1], items[i]
+                _swap_session_keys(i, i - 1, key_patterns)
+                st.rerun()
+                
+            if st.button("Move Down", key=f"move_down_{session_state_key}_{i}", disabled=down_disabled, use_container_width=True):
+                items[i], items[i+1] = items[i+1], items[i]
+                _swap_session_keys(i, i + 1, key_patterns)
+                st.rerun()
+                
+            if st.button("Delete", key=f"delete_{session_state_key}_{i}", use_container_width=True):
+                items.pop(i)
+                _delete_session_keys(i, len(items) + 1, key_patterns)
+                st.rerun()
+

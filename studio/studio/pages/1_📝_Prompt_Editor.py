@@ -9,7 +9,8 @@ from studio.helpers import (
     render_schema_form, 
     load_asset_data, 
     validate_and_save_asset,
-    get_relative_asset_paths
+    get_relative_asset_paths,
+    render_shared_list
 )
 from promptops.utils import ROOT
 
@@ -200,11 +201,11 @@ with main_tabs[1]:
     show_tab_errors("Messages")
     st.subheader("Messages")
     
-    for i, msg in enumerate(st.session_state['messages']):
-        col1, col2, col3 = st.columns([2, 8, 1])
-        with col1:
+    def render_message_item(i, msg):
+        col_role, col_text = st.columns([2, 8])
+        with col_role:
             st.session_state['messages'][i]['role'] = st.selectbox(f"Role {i}", ["system", "user", "assistant"], index=["system", "user", "assistant"].index(msg.get('role', 'user')), key=f"role_{i}")
-        with col2:
+        with col_text:
             st.session_state['messages'][i]['content'] = st.text_area(f"Content {i}", value=msg.get('content', ''), key=f"content_{i}")
             
             btn_col1, btn_col2, btn_col3 = st.columns([2, 2, 6])
@@ -259,10 +260,26 @@ with main_tabs[1]:
                     st.session_state[f"show_san_diff_{i}"] = False
                     st.rerun()
 
-        with col3:
-            if st.button("X", key=f"del_{i}"):
-                st.session_state['messages'].pop(i)
-                st.rerun()
+    key_patterns = [
+        "role_{}",
+        "content_{}",
+        "show_opt_diff_{}",
+        "show_san_diff_{}",
+        "orig_opt_{}",
+        "prop_opt_{}",
+        "orig_san_{}",
+        "prop_san_{}",
+        "acc_opt_{}",
+        "rej_opt_{}",
+        "acc_san_{}",
+        "rej_san_{}",
+    ]
+    render_shared_list(
+        session_state_key="messages",
+        item_renderer=render_message_item,
+        key_patterns=key_patterns,
+        col_widths=[8.5, 1.5]
+    )
 
     if st.button("Add Message"):
         st.session_state['messages'].append({"role": "user", "content": ""})
