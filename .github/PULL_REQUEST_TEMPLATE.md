@@ -17,3 +17,7 @@ Please include a summary of the change and which issue is fixed. Please also inc
 - [ ] If submitting a prompt: it includes realistic `testData` and `evaluators`
 - [ ] If submitting a prompt: jinja variables are correctly formatted without spaces inside brackets (e.g. `{{var_name}}`)
 - [ ] New and existing unit tests pass locally with my changes
+
+## Code Reuse Verification
+- [ ] **Author**: Confirmed I searched directories `promptops/promptops/` and `studio/studio/` to reuse existing YAML/file parsing and UI list helpers (in `utils.py` & `helpers.py`) before submitting.
+- [ ] **Reviewer**: Confirmed standard helper patterns are reused and no redundant utility or custom workflows were introduced.
