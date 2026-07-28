@@ -285,3 +285,46 @@ def render_shared_list(
                 _delete_session_keys(i, len(items) + 1, key_patterns)
                 st.rerun()
 
+
+import pandas as pd
+from typing import List, Dict, Any, Union
+
+def sanitize_dataframe_records(data: Union[pd.DataFrame, List[Dict[str, Any]]], boolean_cols: List[str] = None) -> List[Dict[str, Any]]:
+    """
+    Sanitizes UI dataframes or list of dicts before validation and saving.
+    - Converts NaN/pd.NA and empty or whitespace-only strings to None.
+    - Converts empty or unset checkbox fields (in boolean_cols) to False instead of NaN.
+    """
+    if isinstance(data, pd.DataFrame):
+        records = data.to_dict('records')
+    elif isinstance(data, list):
+        # Shallow copy to avoid mutation
+        records = [dict(r) for r in data]
+    else:
+        return data
+
+    if boolean_cols is None:
+        boolean_cols = ['required']
+
+    sanitized = []
+    for row in records:
+        clean_row = {}
+        for k, v in row.items():
+            is_null = pd.isna(v) if not isinstance(v, (list, dict, str)) else False
+            
+            if k in boolean_cols:
+                if is_null or v is None or v == "" or (isinstance(v, str) and v.strip() == ""):
+                    clean_row[k] = False
+                else:
+                    clean_row[k] = bool(v)
+            else:
+                if is_null or v is None:
+                    clean_row[k] = None
+                elif isinstance(v, str) and v.strip() == "":
+                    clean_row[k] = None
+                else:
+                    clean_row[k] = v
+        sanitized.append(clean_row)
+    return sanitized
+
+

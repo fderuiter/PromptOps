@@ -10,7 +10,8 @@ from studio.helpers import (
     load_asset_data, 
     validate_and_save_asset,
     get_relative_asset_paths,
-    render_shared_list
+    render_shared_list,
+    sanitize_dataframe_records
 )
 from promptops.utils import ROOT, load_yaml
 
@@ -107,7 +108,15 @@ with wf_tabs[0]:
     )
     
     st.subheader("Global Inputs")
-    inputs_df = pd.DataFrame(st.session_state['wf_inputs']) if st.session_state['wf_inputs'] else pd.DataFrame(columns=["name", "description"])
+    inputs_cols = ["name", "description"]
+    if st.session_state['wf_inputs']:
+        inputs_df = pd.DataFrame(st.session_state['wf_inputs'])
+        for col in inputs_cols:
+            if col not in inputs_df.columns:
+                inputs_df[col] = None
+        inputs_df = inputs_df[inputs_cols]
+    else:
+        inputs_df = pd.DataFrame(columns=inputs_cols)
     edited_inputs_df = st.data_editor(inputs_df, num_rows="dynamic", key="wf_inputs_editor")
 
 # Collect available output variables from previous steps and global inputs
@@ -249,7 +258,7 @@ with wf_tabs[1]:
             from streamlit_mermaid import st_mermaid
             
             temp_data = dict(data)
-            temp_data['inputs'] = edited_inputs_df.to_dict('records')
+            temp_data['inputs'] = sanitize_dataframe_records(edited_inputs_df)
             temp_data['steps'] = steps
             wf = WorkflowSchema(**temp_data)
             mermaid_code = MermaidGrapher.generate(wf)
@@ -316,7 +325,7 @@ if st.button("Save Workflow", type="primary"):
         st.error("File path must end with .workflow.yaml or .workflow.yml")
     else:
         # Reconcile state back to the data schema (Requirement 5)
-        data['inputs'] = edited_inputs_df.to_dict('records')
+        data['inputs'] = sanitize_dataframe_records(edited_inputs_df)
         data['steps'] = st.session_state['wf_steps']
         data['testData'] = st.session_state['wf_testData'] if st.session_state['wf_testData'] else None
         
