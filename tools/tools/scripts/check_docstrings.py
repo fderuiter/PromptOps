@@ -3,6 +3,7 @@
 import ast
 import os
 import sys
+from promptops.utils import walk_workspace
 
 def check_file_docstrings(filepath):
     """Missing docstring."""
@@ -51,7 +52,7 @@ def main():
     for directory in directories:
         if not os.path.exists(directory):
             continue
-        for root, dirs, files in os.walk(directory):  # noqa: TID251
+        for root, dirs, files in walk_workspace(directory):
             for file in files:
                 if file.endswith(".py") and not file.startswith("test_"):
                     filepath = os.path.join(root, file)

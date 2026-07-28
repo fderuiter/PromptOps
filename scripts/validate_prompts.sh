@@ -27,6 +27,11 @@ uv run ruff check promptops/ --config promptops/ruff.toml || exit 1
 uv run ruff check tools/ --config tools/ruff.toml || exit 1
 uv run ruff check studio/ --config studio/ruff.toml || exit 1
 
+echo "Running strict workspace boundary ignore-override checks..."
+uv run ruff check promptops/ --config promptops/ruff.toml --select TID251 --ignore-noqa || exit 1
+uv run ruff check tools/ --config tools/ruff.toml --select TID251 --ignore-noqa || exit 1
+uv run ruff check studio/ --config studio/ruff.toml --select TID251 --ignore-noqa || exit 1
+
 echo "Running YAML syntax validation..."
 uv run yamllint --strict . || exit 1
 
