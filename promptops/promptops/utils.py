@@ -239,6 +239,24 @@ def load_yaml(path: Union[str, Path], raw: bool = False) -> Dict[str, Any]:
 
 def save_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
     """Missing docstring."""
+    import math
+    import pandas as pd
+    
+    def _clean_nan(v: Any) -> Any:
+        if isinstance(v, dict):
+            return {k: _clean_nan(val) for k, val in v.items()}
+        elif isinstance(v, list):
+            return [_clean_nan(val) for val in v]
+        else:
+            if v is None:
+                return None
+            if isinstance(v, float) and math.isnan(v):
+                return None
+            if v is pd.NA:
+                return None
+            return v
+
+    data = _clean_nan(data)
     path_obj = Path(path)
     path_obj.parent.mkdir(parents=True, exist_ok=True)
     

@@ -10,7 +10,8 @@ from studio.helpers import (
     load_asset_data, 
     validate_and_save_asset,
     get_relative_asset_paths,
-    render_shared_list
+    render_shared_list,
+    sanitize_dataframe_records
 )
 from promptops.utils import ROOT
 
@@ -193,7 +194,15 @@ with main_tabs[0]:
     
     st.subheader("Variables")
     variables = data.get('variables', [])
-    var_df = pd.DataFrame(variables) if variables else pd.DataFrame(columns=["name", "description", "required"])
+    var_cols = ["name", "description", "required", "default"]
+    if variables:
+        var_df = pd.DataFrame(variables)
+        for col in var_cols:
+            if col not in var_df.columns:
+                var_df[col] = None
+        var_df = var_df[var_cols]
+    else:
+        var_df = pd.DataFrame(columns=var_cols)
     edited_var_df = st.data_editor(var_df, num_rows="dynamic", key="var_editor")
 
 # ----------------- TAB 2: Messages -----------------
@@ -318,7 +327,15 @@ with main_tabs[2]:
             st.session_state['tools'][i]['description'] = tool_desc
             
             flat_params = mcp_to_flat_params(tool)
-            df_params = pd.DataFrame(flat_params) if flat_params else pd.DataFrame(columns=["name", "type", "description", "required"])
+            tool_cols = ["name", "type", "description", "required"]
+            if flat_params:
+                df_params = pd.DataFrame(flat_params)
+                for col in tool_cols:
+                    if col not in df_params.columns:
+                        df_params[col] = None
+                df_params = df_params[tool_cols]
+            else:
+                df_params = pd.DataFrame(columns=tool_cols)
             
             st.markdown("**Parameters (Properties)**")
             edited_tool_df = st.data_editor(
@@ -333,7 +350,7 @@ with main_tabs[2]:
             )
             
             # Update MCP schema on edit
-            updated_flat = edited_tool_df.to_dict('records')
+            updated_flat = sanitize_dataframe_records(edited_tool_df, boolean_cols=['required'])
             st.session_state['tools'][i]['inputSchema'] = flat_params_to_mcp(updated_flat)
 
     st.markdown("---")
@@ -352,7 +369,15 @@ with main_tabs[3]:
             st.session_state['output_schema'] = {"type": "object", "properties": {}, "required": []}
             
         flat_os = output_schema_to_flat(st.session_state['output_schema'])
-        df_os = pd.DataFrame(flat_os) if flat_os else pd.DataFrame(columns=["key", "type", "description", "required"])
+        os_cols = ["key", "type", "description", "required"]
+        if flat_os:
+            df_os = pd.DataFrame(flat_os)
+            for col in os_cols:
+                if col not in df_os.columns:
+                    df_os[col] = None
+            df_os = df_os[os_cols]
+        else:
+            df_os = pd.DataFrame(columns=os_cols)
         
         st.markdown("Define the expected properties in the JSON response:")
         edited_os_df = st.data_editor(
@@ -366,7 +391,7 @@ with main_tabs[3]:
             }
         )
         
-        updated_os_flat = edited_os_df.to_dict('records')
+        updated_os_flat = sanitize_dataframe_records(edited_os_df, boolean_cols=['required'])
         st.session_state['output_schema'] = flat_to_output_schema(updated_os_flat)
     else:
         st.session_state['output_schema'] = None
@@ -456,7 +481,7 @@ if st.button("Save Changes", type="primary"):
     else:
         # Construct parameters and list editors back into the main dataset (Requirement 5)
         data['modelParameters'].update({"temperature": temperature, "max_tokens": max_tokens})
-        data['variables'] = edited_var_df.to_dict('records')
+        data['variables'] = sanitize_dataframe_records(edited_var_df, boolean_cols=['required'])
         data['messages'] = st.session_state['messages']
         data['tools'] = st.session_state['tools'] if st.session_state['tools'] else None
         data['output_schema'] = st.session_state['output_schema'] if st.session_state['output_schema'] else None
