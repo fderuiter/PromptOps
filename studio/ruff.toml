@@ -1,5 +1,5 @@
 [lint]
-select = ["TID251"]
+select = ["TID251", "RUF100"]
 
 [lint.flake8-tidy-imports.banned-api]
 "tools".msg = "Boundary violation: Cannot import tools from studio"
