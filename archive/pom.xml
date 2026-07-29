@@ -14,9 +14,9 @@
                     <failOnViolation>true</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
                     <rulesets>
-                        <ruleset>${session.executionRootDirectory}/pmd-ruleset.xml</ruleset>
+                        <ruleset>${project.basedir}/pmd-ruleset.xml</ruleset>
                     </rulesets>
-                    <excludeFromFailureFile>${session.executionRootDirectory}/pmd-exclude.properties</excludeFromFailureFile>
+                    <excludeFromFailureFile>${project.basedir}/pmd-exclude.properties</excludeFromFailureFile>
                 </configuration>
                 <executions>
                     <execution>
