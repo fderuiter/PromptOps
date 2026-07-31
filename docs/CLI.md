@@ -53,15 +53,18 @@ options:
 ### `promptops validate`
 
 ```text
-usage: promptops validate [-h] [--dir DIR] [--strict] [files ...]
+usage: promptops validate [-h] [--dir DIR] [--strict] [--skip-semantic]
+                          [files ...]
 
 positional arguments:
-  files       Specific files to validate and format (updates last_modified)
+  files            Specific files to validate and format (updates
+                   last_modified)
 
 options:
-  -h, --help  show this help message and exit
-  --dir DIR   Directory containing prompts
-  --strict    Enable strict validation
+  -h, --help       show this help message and exit
+  --dir DIR        Directory containing prompts
+  --strict         Enable strict validation
+  --skip-semantic  Skip semantic validation checks
 
 ```
 

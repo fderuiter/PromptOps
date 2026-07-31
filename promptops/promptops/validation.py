@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Dict, Union, Set
 
 from pydantic import BaseModel, ValidationError, field_validator, model_validator, Field
-from promptops.utils import load_yaml, iter_prompt_files, iter_workflow_files, extract_vars_from_text
+from promptops.utils import load_yaml, iter_prompt_files, iter_workflow_files, extract_vars_from_text, ROOT
 from promptops import console
 
 VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')
@@ -589,7 +589,183 @@ def detect_workflow_redundancies(workflows_data: List[tuple[str, dict]]):
                 console.warn(f"Duplicated step sequence found across workflows: {files}. Consider converting to a sub-workflow.")
 
 
-def validate_prompts(directory: str, strict: bool = False, files: Optional[List[str]] = None) -> bool:
+def get_modified_prompt_files(directory: str) -> List[Path]:
+    """Get the prompt files added or modified in the current git work tree."""
+    import subprocess
+    from pathlib import Path
+    modified_files = []
+    try:
+        res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        for line in res.stdout.splitlines():
+            if len(line) < 4:
+                continue
+            file_path_str = line[3:].strip()
+            if file_path_str.startswith('"') and file_path_str.endswith('"'):
+                file_path_str = file_path_str[1:-1]
+            path = ROOT / file_path_str
+            if path.exists() and path.name.endswith(('.prompt.yaml', '.prompt.yml', '.prompt.md')):
+                target_dir = Path(directory).resolve()
+                try:
+                    resolved_path = path.resolve()
+                    if target_dir == resolved_path or target_dir in resolved_path.parents:
+                        modified_files.append(resolved_path)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return list(set(modified_files))
+
+
+def extract_system_instructions(prompt_data: dict) -> str:
+    """Extract system messages, or fallback to description/other messages."""
+    messages = prompt_data.get("messages", [])
+    system_contents = []
+    for msg in messages:
+        if msg.get("role") == "system":
+            content = msg.get("content")
+            if isinstance(content, str):
+                system_contents.append(content)
+            elif isinstance(content, list):
+                system_contents.append(" ".join(str(item) for item in content))
+    if system_contents:
+        return "\n".join(system_contents)
+    
+    fallback = []
+    desc = prompt_data.get("description")
+    if desc:
+        fallback.append(f"Description: {desc}")
+    for msg in messages:
+        content = msg.get("content")
+        if content:
+            if isinstance(content, str):
+                fallback.append(content)
+            elif isinstance(content, list):
+                fallback.append(" ".join(str(item) for item in content))
+    return "\n".join(fallback)
+
+
+def check_semantic_duplicates(directory: str, modified_prompts: List[Path]) -> bool:
+    """
+    Call external LLM to check if modified prompts are duplicates or heavy paraphrases
+    of any existing prompts in the registry.
+    """
+    import os
+    import urllib.request
+    import urllib.error
+    import json
+    
+    api_key = os.environ.get("LLM_API_KEY_SHADOW") or os.environ.get("LLM_API_KEY")
+    if not api_key:
+        console.warn("Skipping semantic audit: LLM_API_KEY or LLM_API_KEY_SHADOW is not set.")
+        return True
+        
+    registry_prompts = []
+    for file_path in iter_prompt_files(directory):
+        registry_prompts.append(file_path.resolve())
+        
+    ok = True
+    
+    for active_path in modified_prompts:
+        active_data = load_yaml(str(active_path))
+        if not active_data:
+            continue
+            
+        active_instructions = extract_system_instructions(active_data)
+        try:
+            active_filename = str(active_path.relative_to(ROOT))
+        except ValueError:
+            active_filename = active_path.name
+            
+        candidates = []
+        for reg_path in registry_prompts:
+            if reg_path == active_path:
+                continue
+            cand_data = load_yaml(str(reg_path))
+            if not cand_data:
+                continue
+            cand_instructions = extract_system_instructions(cand_data)
+            try:
+                cand_filename = str(reg_path.relative_to(ROOT))
+            except ValueError:
+                cand_filename = reg_path.name
+            candidates.append((cand_filename, cand_instructions))
+            
+        if not candidates:
+            continue
+            
+        url = "https://api.openai.com/v1/chat/completions"
+        system_msg = (
+            "You are an expert prompt registry auditor. Your task is to identify semantic duplicates, "
+            "redundancies, or heavy paraphrasing of prompt templates in our registry.\n"
+            "Compare the 'Active Prompt' instructions against the list of 'Registry Prompts'.\n"
+            "An 'Active Prompt' is a semantic duplicate if it shares the same primary objective, "
+            "constraints, or guidelines as a Registry Prompt, even if it uses slightly different vocabulary or structure.\n"
+            "If you find a semantic duplicate, identify the matching registry prompt and provide a brief explanation of the overlap.\n"
+            "Respond ONLY with valid JSON in the following format:\n"
+            '{\n'
+            '  "is_duplicate": true,\n'
+            '  "matching_file": "relative/path/to/registry_prompt.yaml",\n'
+            '  "reason": "Short explanation of the semantic overlap."\n'
+            '}\n'
+            "If there are no semantic duplicates, set 'is_duplicate' to false, and leave 'matching_file' and 'reason' empty or null."
+        )
+        
+        user_msg = (
+            f"Active Prompt Filename: {active_filename}\n"
+            f"Active Prompt Instructions:\n{active_instructions}\n\n"
+            "Registry Prompts:\n"
+        )
+        for cand_file, cand_instructions in candidates:
+            user_msg += f"---\nFilename: {cand_file}\nInstructions:\n{cand_instructions}\n"
+            
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.0
+        }
+        
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            },
+            data=json.dumps(payload).encode("utf-8")
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                content_str = result["choices"][0]["message"]["content"]
+                result_data = json.loads(content_str)
+                
+                is_duplicate = result_data.get("is_duplicate", False)
+                if is_duplicate:
+                    matching_file = result_data.get("matching_file") or "unknown"
+                    reason = result_data.get("reason", "Semantic duplicate detected.")
+                    console.error(f"Semantic audit failed for {active_filename}: duplicate of {matching_file}")
+                    console.error(f"Reason: {reason}")
+                    ok = False
+        except urllib.error.URLError as e:
+            console.warn(f"Skipping semantic audit for {active_filename}: network unreachable or API call failed. Error: {e}")
+        except Exception as e:
+            console.warn(f"Skipping semantic audit for {active_filename}: unexpected error during LLM call. Error: {e}")
+            
+    return ok
+
+
+def validate_prompts(directory: str, strict: bool = False, files: Optional[List[str]] = None, skip_semantic: bool = False) -> bool:
     """Missing docstring."""
     ok = True
     seen_names: Dict[str, str] = {}
@@ -758,6 +934,20 @@ def validate_prompts(directory: str, strict: bool = False, files: Optional[List[
 
             if not (is_prompt or is_workflow):
                 console.error(f"{file} is not a recognised prompt or workflow file")
+                ok = False
+
+    if not skip_semantic:
+        modified_prompts = get_modified_prompt_files(dir_path)
+        if files:
+            for f in files:
+                path = Path(f).resolve()
+                if path.exists() and path.name.endswith(('.prompt.yaml', '.prompt.yml', '.prompt.md')):
+                    modified_prompts.append(path)
+        
+        modified_prompts = list(set([p.resolve() for p in modified_prompts]))
+        if modified_prompts:
+            semantic_ok = check_semantic_duplicates(dir_path, modified_prompts)
+            if not semantic_ok:
                 ok = False
 
     return ok
