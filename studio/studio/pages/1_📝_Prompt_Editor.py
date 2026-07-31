@@ -290,7 +290,7 @@ with main_tabs[1]:
         col_widths=[8.5, 1.5]
     )
 
-    if st.button("Add Message"):
+    if st.button("➕ Add Message"):
         st.session_state['messages'].append({"role": "user", "content": ""})
         st.rerun()
 
@@ -299,29 +299,10 @@ with main_tabs[2]:
     show_tab_errors("MCP Tools")
     st.subheader("MCP-Compliant Tools Editor")
     
-    if st.button("➕ Add MCP Tool"):
-        st.session_state['tools'].append({
-            "name": f"new_tool_{len(st.session_state['tools']) + 1}",
-            "description": "",
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        })
-        st.rerun()
-        
-    for i, tool in enumerate(st.session_state['tools']):
+    def render_tool_item(i, tool):
         with st.expander(f"🛠️ Tool {i+1}: {tool.get('name', 'Unnamed Tool')}", expanded=True):
-            col1, col2 = st.columns([8, 2])
-            with col1:
-                tool_name = st.text_input("Tool Name", value=tool.get('name', ''), key=f"tool_name_{i}")
-                st.session_state['tools'][i]['name'] = tool_name
-            with col2:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("🗑️ Remove Tool", key=f"del_tool_{i}"):
-                    st.session_state['tools'].pop(i)
-                    st.rerun()
+            tool_name = st.text_input("Tool Name", value=tool.get('name', ''), key=f"tool_name_{i}")
+            st.session_state['tools'][i]['name'] = tool_name
                     
             tool_desc = st.text_area("Tool Description", value=tool.get('description', ''), key=f"tool_desc_{i}")
             st.session_state['tools'][i]['description'] = tool_desc
@@ -352,6 +333,31 @@ with main_tabs[2]:
             # Update MCP schema on edit
             updated_flat = sanitize_dataframe_records(edited_tool_df, boolean_cols=['required'])
             st.session_state['tools'][i]['inputSchema'] = flat_params_to_mcp(updated_flat)
+
+    if st.button("➕ Add MCP Tool"):
+        st.session_state['tools'].append({
+            "name": f"new_tool_{len(st.session_state['tools']) + 1}",
+            "description": "",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        })
+        st.rerun()
+
+    tool_key_patterns = [
+        "tool_name_{}",
+        "tool_desc_{}",
+        "tool_params_editor_{}",
+    ]
+    render_shared_list(
+        session_state_key="tools",
+        item_renderer=render_tool_item,
+        key_patterns=tool_key_patterns,
+        col_widths=[8.5, 1.5],
+        show_reorder=False
+    )
 
     st.markdown("---")
     st.markdown("### Read-Only Tools JSON Preview")
@@ -409,9 +415,10 @@ with main_tabs[4]:
     st.subheader("Test Data & Evaluators")
     
     st.markdown("### Test Data")
-    for i, td in enumerate(st.session_state['testData']):
+    
+    def render_test_case_item(i, td):
         with st.expander(f"Test Case {i+1}", expanded=True):
-            col1, col2, col3 = st.columns([4, 4, 1])
+            col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**Inputs**")
                 inputs_json = td.get('inputs', td.get('input', {}))
@@ -428,19 +435,28 @@ with main_tabs[4]:
                     st.session_state['testData'][i]['inputs'] = updated_inputs
             with col2:
                 st.session_state['testData'][i]['expected'] = st.text_area(f"Expected Output", value=str(td.get('expected', '')), key=f"td_expected_{i}")
-            with col3:
-                if st.button("X", key=f"del_td_{i}"):
-                    st.session_state['testData'].pop(i)
-                    st.rerun()
 
-    if st.button("Add Test Case"):
+    if st.button("➕ Add Test Case"):
         st.session_state['testData'].append({"inputs": {}, "expected": ""})
         st.rerun()
 
+    td_key_patterns = [
+        "td_inputs_{}",
+        "td_expected_{}"
+    ]
+    render_shared_list(
+        session_state_key="testData",
+        item_renderer=render_test_case_item,
+        key_patterns=td_key_patterns,
+        col_widths=[8.5, 1.5],
+        show_reorder=False
+    )
+
     st.markdown("### Evaluators")
-    for i, ev in enumerate(st.session_state['evaluators']):
+    
+    def render_evaluator_item(i, ev):
         with st.expander(f"Evaluator: {ev.get('name', 'New')}", expanded=True):
-            col1, col2, col3 = st.columns([3, 6, 1])
+            col1, col2 = st.columns([3, 7])
             with col1:
                 st.session_state['evaluators'][i]['name'] = st.text_input(f"Name", value=ev.get('name', ''), key=f"ev_name_{i}")
             with col2:
@@ -464,14 +480,24 @@ with main_tabs[4]:
                         st.session_state['evaluators'][i]['python'] = new_rule.to_python_expression()
                     else:
                         st.session_state['evaluators'][i]['python'] = st.text_area("Custom Python", value=py_logic, key=f"ev_py_{i}")
-            with col3:
-                if st.button("X", key=f"del_ev_{i}"):
-                    st.session_state['evaluators'].pop(i)
-                    st.rerun()
 
-    if st.button("Add Evaluator"):
+    if st.button("➕ Add Evaluator"):
         st.session_state['evaluators'].append({"name": "", "python": ""})
         st.rerun()
+
+    ev_key_patterns = [
+        "ev_name_{}",
+        "ev_type_{}",
+        "ev_val_{}",
+        "ev_py_{}",
+    ]
+    render_shared_list(
+        session_state_key="evaluators",
+        item_renderer=render_evaluator_item,
+        key_patterns=ev_key_patterns,
+        col_widths=[8.5, 1.5],
+        show_reorder=False
+    )
 
 # Global Save Button (Primary action)
 st.markdown("---")
