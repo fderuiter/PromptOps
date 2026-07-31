@@ -235,7 +235,8 @@ def render_shared_list(
     session_state_key: str,
     item_renderer: Callable[[int, Any], None],
     key_patterns: List[str] = None,
-    col_widths: List[float] = [8.5, 1.5]
+    col_widths: List[float] = [8.5, 1.5],
+    show_reorder: bool = True
 ) -> None:
     """
     Renders a unified sequence of list items with standard controls:
@@ -266,21 +267,22 @@ def render_shared_list(
             # Standard vertical spacing
             st.write("") # creates slight top alignment spacing
             
-            up_disabled = (i == 0)
-            down_disabled = (i == len(items) - 1)
-            
-            # Action buttons use unified, consistent plain-text labels and secondary button styles
-            if st.button("Move Up", key=f"move_up_{session_state_key}_{i}", disabled=up_disabled, use_container_width=True):
-                items[i], items[i-1] = items[i-1], items[i]
-                _swap_session_keys(i, i - 1, key_patterns)
-                st.rerun()
+            if show_reorder:
+                up_disabled = (i == 0)
+                down_disabled = (i == len(items) - 1)
                 
-            if st.button("Move Down", key=f"move_down_{session_state_key}_{i}", disabled=down_disabled, use_container_width=True):
-                items[i], items[i+1] = items[i+1], items[i]
-                _swap_session_keys(i, i + 1, key_patterns)
-                st.rerun()
+                # Action buttons use unified, consistent plain-text labels and secondary button styles
+                if st.button("⬆️ Move Up", key=f"move_up_{session_state_key}_{i}", disabled=up_disabled, use_container_width=True):
+                    items[i], items[i-1] = items[i-1], items[i]
+                    _swap_session_keys(i, i - 1, key_patterns)
+                    st.rerun()
+                    
+                if st.button("⬇️ Move Down", key=f"move_down_{session_state_key}_{i}", disabled=down_disabled, use_container_width=True):
+                    items[i], items[i+1] = items[i+1], items[i]
+                    _swap_session_keys(i, i + 1, key_patterns)
+                    st.rerun()
                 
-            if st.button("Delete", key=f"delete_{session_state_key}_{i}", use_container_width=True):
+            if st.button("🗑️ Delete", key=f"delete_{session_state_key}_{i}", use_container_width=True):
                 items.pop(i)
                 _delete_session_keys(i, len(items) + 1, key_patterns)
                 st.rerun()

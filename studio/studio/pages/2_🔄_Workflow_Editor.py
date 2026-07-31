@@ -224,7 +224,7 @@ with wf_tabs[1]:
                     selected_target = st.selectbox("Target", all_step_ids, index=target_idx if all_step_ids else 0, key=f"cond_tgt_{i}_{e_idx}")
                     st.session_state['wf_steps'][i]['next'][e_idx]["target"] = selected_target
 
-            if st.button("Add Branch", key=f"add_branch_{i}"):
+            if st.button("➕ Add Branch", key=f"add_branch_{i}"):
                 st.session_state['wf_steps'][i]['next'].append({"target": ""})
                 st.rerun()
 
@@ -245,7 +245,7 @@ with wf_tabs[1]:
         col_widths=[8.5, 1.5]
     )
 
-    if st.button("Add Step"):
+    if st.button("➕ Add Step"):
         st.session_state['wf_steps'].append({"step_id": f"step_{len(st.session_state['wf_steps'])+1}", "prompt_file": prompt_files[0] if prompt_files else "", "map_inputs": {}})
         st.rerun()
 
@@ -279,40 +279,44 @@ with wf_tabs[2]:
     show_tab_errors_wf("Test Data")
     st.subheader("Workflow-level Test Data (Requirement 4)")
     
+    def render_wf_test_case_item(idx, tc):
+        with st.expander(f"📁 Test Case {idx+1}", expanded=True):
+            st.markdown("**Global Inputs Mapping**")
+            tc_inputs = tc.get('inputs', tc.get('vars', {})) or {}
+            updated_inputs = {}
+            
+            # Fetch currently defined global inputs
+            global_inputs_list = []
+            for index, row in edited_inputs_df.iterrows():
+                name = row.get('name')
+                if pd.notna(name) and str(name).strip():
+                    global_inputs_list.append(str(name).strip())
+                    
+            if not global_inputs_list:
+                st.info("No global inputs defined. Define global inputs in the 'Workflow Details' tab first.")
+            else:
+                for inp in global_inputs_list:
+                    updated_inputs[inp] = st.text_input(
+                        f"Value for global input: `{inp}`",
+                        value=str(tc_inputs.get(inp, "")),
+                        key=f"wf_tc_{idx}_{inp}"
+                    )
+            st.session_state['wf_testData'][idx]['inputs'] = updated_inputs
+
     if st.button("➕ Add Workflow Test Case", key="add_wf_tc"):
         st.session_state['wf_testData'].append({"inputs": {}})
         st.rerun()
-        
-    for idx, tc in enumerate(st.session_state['wf_testData']):
-        with st.expander(f"📁 Test Case {idx+1}", expanded=True):
-            col1, col2 = st.columns([8, 2])
-            with col2:
-                if st.button("🗑️ Remove Test Case", key=f"remove_wf_tc_{idx}"):
-                    st.session_state['wf_testData'].pop(idx)
-                    st.rerun()
-                    
-            with col1:
-                st.markdown("**Global Inputs Mapping**")
-                tc_inputs = tc.get('inputs', tc.get('vars', {})) or {}
-                updated_inputs = {}
-                
-                # Fetch currently defined global inputs
-                global_inputs_list = []
-                for index, row in edited_inputs_df.iterrows():
-                    name = row.get('name')
-                    if pd.notna(name) and str(name).strip():
-                        global_inputs_list.append(str(name).strip())
-                        
-                if not global_inputs_list:
-                    st.info("No global inputs defined. Define global inputs in the 'Workflow Details' tab first.")
-                else:
-                    for inp in global_inputs_list:
-                        updated_inputs[inp] = st.text_input(
-                            f"Value for global input: `{inp}`",
-                            value=str(tc_inputs.get(inp, "")),
-                            key=f"wf_tc_{idx}_{inp}"
-                        )
-                st.session_state['wf_testData'][idx]['inputs'] = updated_inputs
+
+    wf_tc_key_patterns = [
+        "wf_tc_{}_"
+    ]
+    render_shared_list(
+        session_state_key="wf_testData",
+        item_renderer=render_wf_test_case_item,
+        key_patterns=wf_tc_key_patterns,
+        col_widths=[8.5, 1.5],
+        show_reorder=False
+    )
 
     st.markdown("---")
     st.markdown("### Read-Only Test Data JSON Preview")
