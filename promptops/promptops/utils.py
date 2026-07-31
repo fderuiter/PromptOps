@@ -293,6 +293,7 @@ def save_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
     import pandas as pd
     
     def _clean_nan(v: Any) -> Any:
+        """Recursively clean NaN and NA values from a dictionary/list structure, replacing them with None."""
         if isinstance(v, dict):
             return {k: _clean_nan(val) for k, val in v.items()}
         elif isinstance(v, list):

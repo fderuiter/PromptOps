@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from promptops.utils import parse_skill_manifest
 
 def test_undeclared_variable_fails_validation(tmp_path):

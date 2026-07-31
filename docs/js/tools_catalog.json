@@ -3755,6 +3755,27 @@
     }
   },
   {
+    "name": "clinical__Cardiologist_Review",
+    "description": "Evaluates a medical report from a cardiology perspective.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "report_content": {
+          "type": "string",
+          "description": "The medical report content to review."
+        },
+        "introduce_conflict": {
+          "type": "string",
+          "description": "Whether to introduce a conflict for testing purposes."
+        }
+      },
+      "required": [
+        "report_content",
+        "introduce_conflict"
+      ]
+    }
+  },
+  {
     "name": "clinical__Central_Reading_Paradigm_Design",
     "description": "Recommend an efficient central reading model for an oncology trial.",
     "inputSchema": {
@@ -3797,6 +3818,27 @@
       },
       "required": [
         "summary_sheet"
+      ]
+    }
+  },
+  {
+    "name": "clinical__Clinical_Consensus_Arbitration_Workflow",
+    "description": "A clinical peer review workflow that executes three distinct expert steps and uses Jinja to parse and route them.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "report_content": {
+          "type": "string",
+          "description": "Patient clinical/medical report."
+        },
+        "introduce_conflict": {
+          "type": "string",
+          "description": "Whether to inject conflict (\"true\" or \"false\")."
+        }
+      },
+      "required": [
+        "report_content",
+        "introduce_conflict"
       ]
     }
   },
@@ -4909,6 +4951,27 @@
     }
   },
   {
+    "name": "clinical__Jinja-Based_Arbitration",
+    "description": "Runs Jinja arbitration parsing consensus vs disagreement.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "consensus_reached": {
+          "type": "string",
+          "description": "Boolean or string indicating if consensus exists."
+        },
+        "meta_orchestration_summary": {
+          "type": "string",
+          "description": "Consolidated summary from meta-orchestrator."
+        }
+      },
+      "required": [
+        "consensus_reached",
+        "meta_orchestration_summary"
+      ]
+    }
+  },
+  {
     "name": "clinical__Lyricist",
     "description": "Writes the actual lyrics using the themes and structure.",
     "inputSchema": {
@@ -4935,6 +4998,22 @@
     }
   },
   {
+    "name": "clinical__Manual_Clinical_Audit_Fallback",
+    "description": "Places the report in the manual safety review queue due to disagreement.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "meta_orchestration_summary": {
+          "type": "string",
+          "description": "Summary of disagreement."
+        }
+      },
+      "required": [
+        "meta_orchestration_summary"
+      ]
+    }
+  },
+  {
     "name": "clinical__Medical_Coding_and_Reconciliation_Assistant",
     "description": "Automatically predict and apply medical terms to clinical data, and perform automated data reconciliation and query resolution within EDC builds.",
     "inputSchema": {
@@ -4951,6 +5030,32 @@
       },
       "required": [
         "input"
+      ]
+    }
+  },
+  {
+    "name": "clinical__Meta-Orchestrator_Clinical_Review",
+    "description": "Compiles and summarizes the expert reviews.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "oncologist_review": {
+          "type": "string",
+          "description": "Review output from oncologist."
+        },
+        "cardiologist_review": {
+          "type": "string",
+          "description": "Review output from cardiologist."
+        },
+        "toxicologist_review": {
+          "type": "string",
+          "description": "Review output from toxicologist."
+        }
+      },
+      "required": [
+        "oncologist_review",
+        "cardiologist_review",
+        "toxicologist_review"
       ]
     }
   },
@@ -5008,6 +5113,27 @@
     }
   },
   {
+    "name": "clinical__Oncologist_Review",
+    "description": "Evaluates a medical report from an oncology perspective.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "report_content": {
+          "type": "string",
+          "description": "The medical report content to review."
+        },
+        "introduce_conflict": {
+          "type": "string",
+          "description": "Whether to introduce a conflict for testing purposes."
+        }
+      },
+      "required": [
+        "report_content",
+        "introduce_conflict"
+      ]
+    }
+  },
+  {
     "name": "clinical__Optimize_ePRO_Form_Design",
     "description": "Improve ePRO form usability and data quality.",
     "inputSchema": {
@@ -5020,6 +5146,22 @@
       },
       "required": [
         "input"
+      ]
+    }
+  },
+  {
+    "name": "clinical__Output_Validated_Clinical_Data",
+    "description": "Standardized final validated clinical report generation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "meta_orchestration_summary": {
+          "type": "string",
+          "description": "Summary of consensus."
+        }
+      },
+      "required": [
+        "meta_orchestration_summary"
       ]
     }
   },
@@ -6410,6 +6552,27 @@
       },
       "required": [
         "protocol_summary"
+      ]
+    }
+  },
+  {
+    "name": "clinical__Toxicologist_Review",
+    "description": "Evaluates a medical report from a toxicology perspective.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "report_content": {
+          "type": "string",
+          "description": "The medical report content to review."
+        },
+        "introduce_conflict": {
+          "type": "string",
+          "description": "Whether to introduce a conflict for testing purposes."
+        }
+      },
+      "required": [
+        "report_content",
+        "introduce_conflict"
       ]
     }
   },

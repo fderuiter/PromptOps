@@ -1,0 +1,57 @@
+---
+title: Meta-Orchestrator Clinical Review
+---
+
+# Meta-Orchestrator Clinical Review
+
+Compiles and summarizes the expert reviews.
+
+
+
+```yaml
+name: Meta-Orchestrator Clinical Review
+version: "1.0.0"
+description: Compiles and summarizes the expert reviews.
+metadata:
+  domain: clinical
+  complexity: medium
+  tags:
+    - clinical
+    - orchestration
+variables:
+  - name: oncologist_review
+    description: Review output from oncologist.
+    required: true
+  - name: cardiologist_review
+    description: Review output from cardiologist.
+    required: true
+  - name: toxicologist_review
+    description: Review output from toxicologist.
+    required: true
+model: gpt-4o-mini
+modelParameters:
+  temperature: 0.1
+messages:
+  - role: system
+    content: |
+      You are a clinical meta-orchestrator coordinating expert peer reviews.
+  - role: user
+    content: |
+      Consolidate these reviews:
+      Oncologist: {{oncologist_review}}
+      Cardiologist: {{cardiologist_review}}
+      Toxicologist: {{toxicologist_review}}
+testData:
+  - inputs:
+      oncologist_review: "Oncologist Review: Approved. The patient meets all criteria and has no active oncology exclusions."
+      cardiologist_review: "Cardiologist Review: Approved. Cardiac function is normal and within safe protocols."
+      toxicologist_review: "Toxicologist Review: Approved. Drug toxicity markers are within acceptable limits."
+    expected: "Meta-Orchestrator: All three clinical experts have reviewed the report and reached a unanimous consensus: Approved. No safety-critical concerns were raised."
+  - inputs:
+      oncologist_review: "Oncologist Review: Approved. The patient meets all criteria and has no active oncology exclusions."
+      cardiologist_review: "Cardiologist Review: Rejected. Potential risk of severe QTc prolongation detected."
+      toxicologist_review: "Toxicologist Review: Approved. Drug toxicity markers are within acceptable limits."
+    expected: "Meta-Orchestrator: Rejection/Disagreement detected. Cardiologist raised a safety-critical concern regarding QTc prolongation, conflicting with Oncologist and Toxicologist approvals."
+evaluators: []
+
+```

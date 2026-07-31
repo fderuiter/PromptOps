@@ -1,9 +1,8 @@
 import os
 import pytest
-from pathlib import Path
 from pydantic import ValidationError
 from promptops.validation import PromptSchema, validate_prompts
-from promptops.utils import load_requirements, REQUIREMENTS_FILE, save_yaml
+from promptops.utils import load_requirements, save_yaml
 
 def test_pydantic_rejects_invalid_requirements_structure():
     """
