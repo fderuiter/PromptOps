@@ -11,7 +11,10 @@ from studio.helpers import (
     validate_and_save_asset,
     get_relative_asset_paths,
     render_shared_list,
-    sanitize_dataframe_records
+    sanitize_dataframe_records,
+    has_path_traversal,
+    is_safe_path,
+    get_existing_subfolders
 )
 from promptops.utils import ROOT
 
@@ -124,7 +127,38 @@ def flat_to_output_schema(flat_params: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 if selected_file == "Create New...":
     st.subheader("Create New Prompt")
-    new_file_path = st.text_input("File Path (e.g., prompts/my_prompt.prompt.md)")
+    
+    # Redesigned UI: Folder Selectbox + Name Input
+    asset_root = os.path.join(base_dir, "prompts")
+    folder_options = get_existing_subfolders(asset_root) + ["[Create New Subfolder...]"]
+    
+    selected_folder_opt = st.selectbox("Folder Selection", folder_options, key="prompt_folder_selectbox")
+    
+    if selected_folder_opt == "[Create New Subfolder...]":
+        selected_folder = st.text_input("New Subfolder Path", key="prompt_new_folder_input")
+    else:
+        selected_folder = selected_folder_opt
+        
+    file_name = st.text_input("File Name", key="prompt_file_name_input")
+    
+    # Resolve the final file name with single extension suffix .prompt.md
+    ext = ".prompt.md"
+    resolved_name = file_name
+    if resolved_name:
+        if resolved_name.endswith(ext):
+            pass
+        else:
+            resolved_name = f"{resolved_name}{ext}"
+            
+    # Combine selected_folder and resolved_name
+    if selected_folder == ".":
+        new_file_path = os.path.join("prompts", resolved_name) if resolved_name else ""
+    else:
+        new_file_path = os.path.join("prompts", selected_folder, resolved_name) if resolved_name else ""
+        
+    if new_file_path:
+        new_file_path = os.path.normpath(new_file_path)
+        
     data: Dict[str, Any] = {
         "name": "",
         "version": "0.1.0",
@@ -502,30 +536,44 @@ with main_tabs[4]:
 # Global Save Button (Primary action)
 st.markdown("---")
 if st.button("Save Changes", type="primary"):
-    if not new_file_path.endswith('.prompt.md'):
-        st.error("File path must end with .prompt.md")
-    else:
-        # Construct parameters and list editors back into the main dataset (Requirement 5)
-        data['modelParameters'].update({"temperature": temperature, "max_tokens": max_tokens})
-        data['variables'] = sanitize_dataframe_records(edited_var_df, boolean_cols=['required'])
-        data['messages'] = st.session_state['messages']
-        data['tools'] = st.session_state['tools'] if st.session_state['tools'] else None
-        data['output_schema'] = st.session_state['output_schema'] if st.session_state['output_schema'] else None
-        data['testData'] = st.session_state['testData']
-        data['evaluators'] = st.session_state['evaluators']
-        
-        try:
-            # Perform strict local Pydantic validation first
-            PromptSchema(**data)
+    # Validate creation fields if in "Create New..." mode
+    proceed = True
+    if selected_file == "Create New...":
+        if not file_name.strip():
+            st.error("File name is required.")
+            proceed = False
+        elif has_path_traversal(selected_folder) or has_path_traversal(file_name):
+            st.error("Path validation failed: directory traversal segments ('..') are not allowed.")
+            proceed = False
+        elif not is_safe_path(base_dir, os.path.join(base_dir, new_file_path)):
+            st.error("Path validation failed: target path is outside the allowed workspace boundaries.")
+            proceed = False
+
+    if proceed:
+        if not new_file_path.endswith('.prompt.md'):
+            st.error("File path must end with .prompt.md")
+        else:
+            # Construct parameters and list editors back into the main dataset (Requirement 5)
+            data['modelParameters'].update({"temperature": temperature, "max_tokens": max_tokens})
+            data['variables'] = sanitize_dataframe_records(edited_var_df, boolean_cols=['required'])
+            data['messages'] = st.session_state['messages']
+            data['tools'] = st.session_state['tools'] if st.session_state['tools'] else None
+            data['output_schema'] = st.session_state['output_schema'] if st.session_state['output_schema'] else None
+            data['testData'] = st.session_state['testData']
+            data['evaluators'] = st.session_state['evaluators']
             
-            # Clear previous session state errors on success
-            st.session_state['validation_errors'] = []
-            
-            # Save and notify
-            full_path = os.path.join(base_dir, new_file_path)
-            if validate_and_save_asset(full_path, data, PromptSchema, success_message="Saved successfully and validated!"):
+            try:
+                # Perform strict local Pydantic validation first
+                PromptSchema(**data)
+                
+                # Clear previous session state errors on success
+                st.session_state['validation_errors'] = []
+                
+                # Save and notify
+                full_path = os.path.join(base_dir, new_file_path)
+                if validate_and_save_asset(full_path, data, PromptSchema, success_message="Saved successfully and validated!"):
+                    st.rerun()
+            except ValidationError as e:
+                st.session_state['validation_errors'] = e.errors()
+                st.error("Validation failed. Please inspect the dynamic error messages in individual tabs.")
                 st.rerun()
-        except ValidationError as e:
-            st.session_state['validation_errors'] = e.errors()
-            st.error("Validation failed. Please inspect the dynamic error messages in individual tabs.")
-            st.rerun()
