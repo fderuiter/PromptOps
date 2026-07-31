@@ -3,6 +3,7 @@ import argparse
 import sys
 import logging
 import os
+import json
 from promptops.validation import validate_prompts
 from promptops.simulation import simulate_prompt
 from promptops.documentation import generate_docs

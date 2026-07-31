@@ -1,0 +1,8 @@
+# Master list of active requirement IDs for static metadata verification
+requirements:
+  - id: REQ-001
+    description: "The prompt must explicitly guide the model's tone and domain alignment."
+  - id: REQ-002
+    description: "All output structures should match strict schemas where appropriate."
+  - id: REQ-003
+    description: "Prompts must have robust evaluators and structured test data."

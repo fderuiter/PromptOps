@@ -292,6 +292,21 @@
           "default": null,
           "title": "Autonomy"
         },
+        "requirements": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requirements"
+        },
         "maturity": {
           "anyOf": [
             {
