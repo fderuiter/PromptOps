@@ -33,9 +33,9 @@ steps:
     consensus_reached: '{{ "{{" }} "Approved" in steps.oncologist_review.output and "Approved" in steps.cardiologist_review.output and "Approved" in steps.toxicologist_review.output {{ "}}" }}'
     meta_orchestration_summary: '{{steps.meta_orchestration.output}}'
   next:
-    - condition: '{{ "{{" }} "disagreement" in steps.arbitration.output or "Approved" not in steps.oncologist_review.output or "Approved" not in steps.cardiologist_review.output or "Approved" not in steps.toxicologist_review.output {{ "}}" }}'
-      target: manual_audit
-    - target: validated_data
+  - condition: '{{ "{{" }} "disagreement" in steps.arbitration.output or "Approved" not in steps.oncologist_review.output or "Approved" not in steps.cardiologist_review.output or "Approved" not in steps.toxicologist_review.output {{ "}}" }}'
+    target: manual_audit
+  - target: validated_data
 - step_id: manual_audit
   prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/06_manual_audit.prompt.yaml
   map_inputs:
@@ -59,6 +59,6 @@ metadata:
   topic: clinical_safety
   complexity: medium
   tags:
-    - clinical
-    - review
-    - consensus
+  - clinical
+  - review
+  - consensus

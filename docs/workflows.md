@@ -10,6 +10,7 @@ title: Workflows
 - [BioSkills Workflow](workflows/bioskills.md)
 - [CFO Workflow](workflows/cfo.md)
 - [Chemical Characterization and Biocompatibility Assessment](workflows/chemical_characterization.md)
+- [Clinical Consensus Arbitration Workflow](workflows/clinical_consensus_arbitration.md)
 - [Clinical Data Workflow](workflows/clinical_data.md)
 - [Clinical ETL Pipeline Design and Review](workflows/data_management_etl.md)
 - [Clinical Monitoring Workflow](workflows/clinical_monitoring.md)

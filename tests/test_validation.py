@@ -1,16 +1,13 @@
 import os
 import urllib.error
 import json
-from pathlib import Path
 from unittest.mock import patch, MagicMock
-import pytest
 
 from promptops.utils import ROOT
 from promptops.validation import (
     extract_system_instructions,
     get_modified_prompt_files,
-    check_semantic_duplicates,
-    validate_prompts
+    check_semantic_duplicates
 )
 
 def test_extract_system_instructions():

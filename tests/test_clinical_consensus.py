@@ -1,5 +1,3 @@
-import os
-import pytest
 from promptops.engine import run_workflow
 
 def test_clinical_consensus_no_conflict():

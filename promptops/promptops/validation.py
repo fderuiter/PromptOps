@@ -81,6 +81,7 @@ class PromptMetadata(BaseMetadata):
     tags: List[str] = Field([])
     requires_context: bool = Field(False)
     autonomy: Optional[str] = Field(None)
+    requirements: Optional[List[str]] = Field(None)
     maturity: Optional[str] = Field(None)
 
 class InputSchema(BaseModel):
@@ -808,11 +809,21 @@ def validate_prompts(directory: str, strict: bool = False, files: Optional[List[
             continue
             
         try:
-            PromptSchema(**content)
+            schema = PromptSchema(**content)
         except ValidationError as e:
             console.error(f"Validation error in {file_path}:\n{e}")
             ok = False
             continue
+
+        # Check mapped requirement IDs against the master list
+        if schema.metadata and schema.metadata.requirements is not None:
+            from promptops.utils import load_requirements
+            master_requirements = load_requirements()
+            invalid_ids = [req_id for req_id in schema.metadata.requirements if req_id not in master_requirements]
+            if invalid_ids:
+                console.error(f"Validation error in {file_path}:")
+                console.error(f"  Requirement ID(s) missing from master list: {invalid_ids}")
+                ok = False
 
         if strict:
             issues = []

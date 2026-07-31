@@ -115,6 +115,56 @@ MANIFEST_DIR: Path = ROOT / "promptops" / "governance"
 MANIFEST_FILE: Path = MANIFEST_DIR / "compliance_manifest.json"
 GAP_REPORT_FILE: Path = MANIFEST_DIR / "gap_report.json"
 KB_FILE: Path = ROOT / "promptops" / "regulatory_kb.yaml"
+REQUIREMENTS_FILE: Path = ROOT / "requirements.yaml"
+
+
+def load_requirements() -> Set[str]:
+    """
+    Parses the local specification file containing the master list of active requirement IDs.
+    Returns a set of active requirement ID strings.
+    """
+    path = os.environ.get("PROMPTOPS_REQUIREMENTS_PATH")
+    if path:
+        path_obj = Path(path)
+    else:
+        path_obj = REQUIREMENTS_FILE
+
+    if not path_obj.exists():
+        return set()
+
+    try:
+        # Load yaml using safe_load
+        data = yaml.safe_load(path_obj.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+
+    if not data:
+        return set()
+
+    req_ids = set()
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, str):
+                req_ids.add(item)
+            elif isinstance(item, dict) and "id" in item:
+                req_ids.add(str(item["id"]))
+    elif isinstance(data, dict):
+        if "requirements" in data:
+            reqs = data["requirements"]
+            if isinstance(reqs, list):
+                for item in reqs:
+                    if isinstance(item, str):
+                        req_ids.add(item)
+                    elif isinstance(item, dict) and "id" in item:
+                        req_ids.add(str(item["id"]))
+            elif isinstance(reqs, dict):
+                for k in reqs.keys():
+                    req_ids.add(str(k))
+        else:
+            for k in data.keys():
+                req_ids.add(str(k))
+
+    return req_ids
 
 
 def deep_merge(base: Any, override: Any) -> Any:
@@ -243,6 +293,7 @@ def save_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
     import pandas as pd
     
     def _clean_nan(v: Any) -> Any:
+        """Recursively clean NaN and NA values from a dictionary/list structure, replacing them with None."""
         if isinstance(v, dict):
             return {k: _clean_nan(val) for k, val in v.items()}
         elif isinstance(v, list):
