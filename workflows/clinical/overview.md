@@ -2,6 +2,7 @@
 
 ## Workflows
 - **[Adjudication Workflow](adjudication.workflow.yaml)**: A workflow to design an adjudication dashboard, create a source document checklist, and analyze adjudication KPIs.
+- **[Clinical Consensus Arbitration Workflow](clinical_consensus_arbitration.workflow.yaml)**: A clinical peer review workflow that executes three distinct expert steps and uses Jinja to parse and route them.
 - **[Clinical Data Workflow](clinical_data.workflow.yaml)**: A workflow for detecting discrepancies, drafting a DMP section, and building edit check specifications.
 - **[Clinical Monitoring Workflow](clinical_monitoring.workflow.yaml)**: A workflow for creating a site performance dashboard, building a CAPA plan, and critiquing a monitoring visit report.
 - **[Clinical Prompts Workflow](clinical_prompts.workflow.yaml)**: A workflow to generate a CRF shell, audit it, and create a CDASH mapping guide.

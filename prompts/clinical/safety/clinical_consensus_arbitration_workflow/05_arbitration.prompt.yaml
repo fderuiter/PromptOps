@@ -1,0 +1,35 @@
+name: Jinja-Based Arbitration
+version: "1.0.0"
+description: Runs Jinja arbitration parsing consensus vs disagreement.
+metadata:
+  domain: clinical
+  complexity: medium
+  tags:
+    - clinical
+    - arbitration
+variables:
+  - name: consensus_reached
+    description: Boolean or string indicating if consensus exists.
+    required: true
+  - name: meta_orchestration_summary
+    description: Consolidated summary from meta-orchestrator.
+    required: true
+model: gpt-4o-mini
+modelParameters:
+  temperature: 0.1
+messages:
+  - role: system
+    content: |
+      You are an automated clinical review arbitrator.
+  - role: user
+    content: |
+      Consensus Reached: {{consensus_reached}}
+      Summary: {{meta_orchestration_summary}}
+testData:
+  - inputs:
+      consensus_reached: "True"
+    expected: "consensus"
+  - inputs:
+      consensus_reached: "False"
+    expected: "disagreement"
+evaluators: []
