@@ -15,15 +15,9 @@ def test_prompt_editor_launches_and_saves():
     at.run(timeout=15)
     assert not at.exception
 
-    # Find text inputs
-    file_path_ti = None
-    for ti in at.text_input:
-        if ti.label == "File Path (e.g., prompts/my_prompt.prompt.md)":
-            file_path_ti = ti
-            break
-            
-    assert file_path_ti is not None
-    file_path_ti.set_value("prompts/test_new.prompt.md")
+    # Find and set folder and file name inputs
+    at.selectbox(key="prompt_folder_selectbox").set_value(".").run()
+    at.text_input(key="prompt_file_name_input").set_value("test_new").run()
     
     # Click save
     save_btn = None
@@ -59,15 +53,9 @@ def test_workflow_editor_launches_and_saves():
     at.run(timeout=15)
     assert not at.exception
 
-    # Find text inputs
-    file_path_ti = None
-    for ti in at.text_input:
-        if ti.label == "File Path (e.g., workflows/my_workflow.workflow.yaml)":
-            file_path_ti = ti
-            break
-            
-    assert file_path_ti is not None
-    file_path_ti.set_value("workflows/test_new.workflow.yaml")
+    # Find and set folder and file name inputs
+    at.selectbox(key="wf_folder_selectbox").set_value(".").run()
+    at.text_input(key="wf_file_name_input").set_value("test_new").run()
     
     # Click save
     save_btn = None
@@ -129,14 +117,8 @@ def test_prompt_editor_saves_mcp_and_output_schema():
     }
     at.run()
     
-    file_path_ti = None
-    for ti in at.text_input:
-        if ti.label == "File Path (e.g., prompts/my_prompt.prompt.md)":
-            file_path_ti = ti
-            break
-            
-    assert file_path_ti is not None
-    file_path_ti.set_value("prompts/test_mcp_schema.prompt.md")
+    at.selectbox(key="prompt_folder_selectbox").set_value(".").run()
+    at.text_input(key="prompt_file_name_input").set_value("test_mcp_schema").run()
     
     save_btn = None
     for btn in at.button:
@@ -178,14 +160,8 @@ def test_workflow_editor_saves_test_data():
     ]
     at.run()
     
-    file_path_ti = None
-    for ti in at.text_input:
-        if ti.label == "File Path (e.g., workflows/my_workflow.workflow.yaml)":
-            file_path_ti = ti
-            break
-            
-    assert file_path_ti is not None
-    file_path_ti.set_value("workflows/test_wf_data.workflow.yaml")
+    at.selectbox(key="wf_folder_selectbox").set_value(".").run()
+    at.text_input(key="wf_file_name_input").set_value("test_wf_data").run()
     
     save_btn = None
     for btn in at.button:
@@ -207,4 +183,92 @@ def test_workflow_editor_saves_test_data():
     assert saved_data["testData"][0]["inputs"]["scenario"] == "test case scenario data"
     
     test_file.unlink()
+
+
+def test_prompt_editor_blocks_traversal_path():
+    at = AppTest.from_file(str(STUDIO_DIR / "studio/pages" / "1_📝_Prompt_Editor.py"))
+    at.run(timeout=15)
+    assert not at.exception
+
+    # Try to use a traversal sequence in name
+    at.selectbox(key="prompt_folder_selectbox").set_value(".").run()
+    at.text_input(key="prompt_file_name_input").set_value("../unsafe").run()
+    
+    # Click save
+    save_btn = None
+    for btn in at.button:
+        if btn.label == "Save Changes":
+            save_btn = btn
+            break
+            
+    assert save_btn is not None
+    save_btn.click().run()
+    
+    # Check that it did not save, and shows error
+    assert any("Path validation failed" in err.value for err in at.error)
+    
+    # Check that no file named unsafe or .. was created
+    test_file = ROOT_DIR / "prompts" / "unsafe.prompt.md"
+    assert not test_file.exists()
+
+
+def test_prompt_editor_blocks_traversal_folder():
+    at = AppTest.from_file(str(STUDIO_DIR / "studio/pages" / "1_📝_Prompt_Editor.py"))
+    at.run(timeout=15)
+    assert not at.exception
+
+    # Select the "[Create New Subfolder...]" option and use traversal sequence
+    at.selectbox(key="prompt_folder_selectbox").set_value("[Create New Subfolder...]").run()
+    at.text_input(key="prompt_new_folder_input").set_value("../unsafe_dir").run()
+    at.text_input(key="prompt_file_name_input").set_value("test_file").run()
+    
+    # Click save
+    save_btn = None
+    for btn in at.button:
+        if btn.label == "Save Changes":
+            save_btn = btn
+            break
+            
+    assert save_btn is not None
+    save_btn.click().run()
+    
+    # Check that it did not save, and shows error
+    assert any("Path validation failed" in err.value for err in at.error)
+    
+    # Check that folder and file are not created
+    unsafe_dir = ROOT_DIR / "unsafe_dir"
+    assert not unsafe_dir.exists()
+
+
+def test_prompt_editor_creates_new_subfolder_automatically():
+    at = AppTest.from_file(str(STUDIO_DIR / "studio/pages" / "1_📝_Prompt_Editor.py"))
+    at.run(timeout=15)
+    assert not at.exception
+
+    # Select "[Create New Subfolder...]"
+    at.selectbox(key="prompt_folder_selectbox").set_value("[Create New Subfolder...]").run()
+    at.text_input(key="prompt_new_folder_input").set_value("automated_test_folder").run()
+    at.text_input(key="prompt_file_name_input").set_value("test_auto").run()
+    
+    # Click save
+    save_btn = None
+    for btn in at.button:
+        if btn.label == "Save Changes":
+            save_btn = btn
+            break
+            
+    assert save_btn is not None
+    save_btn.click().run()
+    assert not at.exception
+    
+    # Check if folder and file were created
+    target_dir = ROOT_DIR / "prompts" / "automated_test_folder"
+    target_file = target_dir / "test_auto.prompt.md"
+    
+    assert target_dir.exists()
+    assert target_file.exists()
+    
+    # Clean up
+    target_file.unlink()
+    target_dir.rmdir()
 

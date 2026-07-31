@@ -140,6 +140,25 @@ def validate_and_save_asset(
     If valid, saves/serializes YAML to disk, or runs the custom save_callback (if any).
     Displays success/error notifications to the user in a consistent Streamlit banner style.
     """
+    # 1. Path safety and traversal checks before any disk/folder operations
+    base_dir = str(ROOT)
+    if has_path_traversal(file_path):
+        st.error("Path validation failed: directory traversal segments ('..') are not allowed.")
+        return False
+
+    if not is_safe_path(base_dir, file_path):
+        st.error("Path validation failed: target path is outside the allowed workspace boundaries.")
+        return False
+
+    # 2. Safe directory creation AFTER successful path validation
+    try:
+        parent_dir = os.path.dirname(file_path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+    except Exception as e:
+        st.error(f"Failed to create parent directory: {e}")
+        return False
+
     try:
         # Validate using Pydantic model instantiation
         schema_class(**data)
@@ -326,5 +345,48 @@ def sanitize_dataframe_records(data: Union[pd.DataFrame, List[Dict[str, Any]]], 
                     clean_row[k] = v
         sanitized.append(clean_row)
     return sanitized
+
+
+def has_path_traversal(path_str: str) -> bool:
+    """
+    Checks if a path contains directory traversal sequences like '..', '../', '..\\'.
+    """
+    normalized = path_str.replace('\\', '/')
+    segments = normalized.split('/')
+    if ".." in segments:
+        return True
+    if ".." in path_str:
+        return True
+    return False
+
+
+def is_safe_path(base_dir: str, path: str, follow_symlinks: bool = True) -> bool:
+    """
+    Validates that the path resolves to a location strictly inside base_dir.
+    """
+    if follow_symlinks:
+        matchpath = os.path.realpath(path)
+    else:
+        matchpath = os.path.abspath(path)
+    real_base = os.path.realpath(base_dir)
+    return matchpath.startswith(real_base)
+
+
+def get_existing_subfolders(asset_root_dir: str) -> List[str]:
+    """
+    Finds all existing directories under asset_root_dir, returning them as relative paths.
+    Always includes '.' as the first option.
+    """
+    subfolders = []
+    if os.path.exists(asset_root_dir):
+        for root, dirs, _ in os.walk(asset_root_dir):
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d != "__pycache__"]
+            for d in dirs:
+                full_path = os.path.join(root, d)
+                rel_path = os.path.relpath(full_path, asset_root_dir)
+                if rel_path and rel_path != ".":
+                    subfolders.append(rel_path)
+    return ["."] + sorted(list(set(subfolders)))
+
 
 

@@ -11,7 +11,10 @@ from studio.helpers import (
     validate_and_save_asset,
     get_relative_asset_paths,
     render_shared_list,
-    sanitize_dataframe_records
+    sanitize_dataframe_records,
+    has_path_traversal,
+    is_safe_path,
+    get_existing_subfolders
 )
 from promptops.utils import ROOT, load_yaml
 
@@ -50,7 +53,40 @@ def show_tab_errors_wf(tab_name: str):
 
 if selected_file == "Create New...":
     st.subheader("Create New Workflow")
-    new_file_path = st.text_input("File Path (e.g., workflows/my_workflow.workflow.yaml)")
+    
+    # Redesigned UI: Folder Selectbox + Name Input
+    asset_root = os.path.join(base_dir, "workflows")
+    folder_options = get_existing_subfolders(asset_root) + ["[Create New Subfolder...]"]
+    
+    selected_folder_opt = st.selectbox("Folder Selection", folder_options, key="wf_folder_selectbox")
+    
+    if selected_folder_opt == "[Create New Subfolder...]":
+        selected_folder = st.text_input("New Subfolder Path", key="wf_new_folder_input")
+    else:
+        selected_folder = selected_folder_opt
+        
+    file_name = st.text_input("File Name", key="wf_file_name_input")
+    
+    # Resolve the final file name with single extension suffix .workflow.yaml
+    ext = ".workflow.yaml"
+    resolved_name = file_name
+    if resolved_name:
+        if resolved_name.endswith(ext):
+            pass
+        elif resolved_name.endswith(".workflow.yml"):
+            pass
+        else:
+            resolved_name = f"{resolved_name}{ext}"
+            
+    # Combine selected_folder and resolved_name
+    if selected_folder == ".":
+        new_file_path = os.path.join("workflows", resolved_name) if resolved_name else ""
+    else:
+        new_file_path = os.path.join("workflows", selected_folder, resolved_name) if resolved_name else ""
+        
+    if new_file_path:
+        new_file_path = os.path.normpath(new_file_path)
+        
     data: dict[str, Any] = {
         "name": "",
         "description": "",
@@ -321,25 +357,39 @@ with wf_tabs[2]:
 # Global Save Button (Primary action)
 st.markdown("---")
 if st.button("Save Workflow", type="primary"):
-    if not new_file_path.endswith('.workflow.yaml') and not new_file_path.endswith('.workflow.yml'):
-        st.error("File path must end with .workflow.yaml or .workflow.yml")
-    else:
-        # Reconcile state back to the data schema (Requirement 5)
-        data['inputs'] = sanitize_dataframe_records(edited_inputs_df)
-        data['steps'] = st.session_state['wf_steps']
-        data['testData'] = st.session_state['wf_testData'] if st.session_state['wf_testData'] else None
-        
-        try:
-            # Perform strict local Pydantic validation first
-            WorkflowSchema(**data)
+    # Validate creation fields if in "Create New..." mode
+    proceed = True
+    if selected_file == "Create New...":
+        if not file_name.strip():
+            st.error("File name is required.")
+            proceed = False
+        elif has_path_traversal(selected_folder) or has_path_traversal(file_name):
+            st.error("Path validation failed: directory traversal segments ('..') are not allowed.")
+            proceed = False
+        elif not is_safe_path(base_dir, os.path.join(base_dir, new_file_path)):
+            st.error("Path validation failed: target path is outside the allowed workspace boundaries.")
+            proceed = False
+
+    if proceed:
+        if not new_file_path.endswith('.workflow.yaml') and not new_file_path.endswith('.workflow.yml'):
+            st.error("File path must end with .workflow.yaml or .workflow.yml")
+        else:
+            # Reconcile state back to the data schema (Requirement 5)
+            data['inputs'] = sanitize_dataframe_records(edited_inputs_df)
+            data['steps'] = st.session_state['wf_steps']
+            data['testData'] = st.session_state['wf_testData'] if st.session_state['wf_testData'] else None
             
-            # Clear previous session state errors on success
-            st.session_state['wf_validation_errors'] = []
-            
-            full_path = os.path.join(base_dir, new_file_path)
-            if validate_and_save_asset(full_path, data, WorkflowSchema, success_message="Saved workflow successfully and validated!"):
+            try:
+                # Perform strict local Pydantic validation first
+                WorkflowSchema(**data)
+                
+                # Clear previous session state errors on success
+                st.session_state['wf_validation_errors'] = []
+                
+                full_path = os.path.join(base_dir, new_file_path)
+                if validate_and_save_asset(full_path, data, WorkflowSchema, success_message="Saved workflow successfully and validated!"):
+                    st.rerun()
+            except ValidationError as e:
+                st.session_state['wf_validation_errors'] = e.errors()
+                st.error("Validation failed. Please inspect the dynamic error messages in individual tabs.")
                 st.rerun()
-        except ValidationError as e:
-            st.session_state['wf_validation_errors'] = e.errors()
-            st.error("Validation failed. Please inspect the dynamic error messages in individual tabs.")
-            st.rerun()
