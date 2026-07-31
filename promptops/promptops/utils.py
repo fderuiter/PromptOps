@@ -472,36 +472,6 @@ def parse_skill_manifest(path: Path) -> Dict[str, Any]:
             except:
                 pass
 
-        # Extract core instructions
-        # Use non-greedy match for the content to ensure we get the full code block until the final ``` that precedes the next ### heading.
-        instr_match = re.search(r'### Core Instructions\s*```[a-zA-Z0-9_-]*\n(.*?)\n```\n+(?:###|$)', body, re.DOTALL)
-        instructions = instr_match.group(1).strip() if instr_match else ""
-
-        # Render instructions using jinja to evaluate any macros (like load_yaml does)
-        try:
-            from promptops.engine import get_jinja_env
-            env = get_jinja_env(base_dir=str(PROMPTS_DIR))
-            if 'macros.' in instructions and not '{% import' in instructions:
-                instructions = '{% import "common/macros.j2" as macros %}\n' + instructions
-            template = env.from_string(instructions)
-            instructions = template.render()
-        except Exception:
-            pass
-
-        # Split instructions into messages
-        messages = []
-        import re
-        blocks = re.split(r'^\[(system|user|assistant|tool_call|tool_result|tool)\][\r\n]+', instructions, flags=re.MULTILINE | re.IGNORECASE)
-        if len(blocks) > 1:
-            for i in range(1, len(blocks), 2):
-                role = blocks[i].lower()
-                content = blocks[i+1].strip()
-                if content:
-                    messages.append({"role": role, "content": content})
-        else:
-            if instructions.strip():
-                messages.append({"role": "system", "content": instructions.strip()})
-
         # Extract description
         desc_match = re.search(r'### Description\n(.*?)(?=\n### |$)', body, re.DOTALL)
         description = desc_match.group(1).strip() if desc_match else ""
@@ -525,6 +495,82 @@ def parse_skill_manifest(path: Path) -> Dict[str, Any]:
                     inp_dict = {"input": inp_str}
                 test_data.append({"inputs": inp_dict, "expected": [out_str]})
 
+        # Extract core instructions
+        # Use non-greedy match for the content to ensure we get the full code block until the final ``` that precedes the next ### heading.
+        instr_match = re.search(r'### Core Instructions\s*```[a-zA-Z0-9_-]*\n(.*?)\n```\n+(?:###|$)', body, re.DOTALL)
+        raw_instructions = instr_match.group(1).strip() if instr_match else ""
+
+        # --- PASS 1: Raw Variable Verification ---
+        raw_messages = []
+        raw_blocks = re.split(r'^\[(system|user|assistant|tool_call|tool_result|tool)\][\r\n]+', raw_instructions, flags=re.MULTILINE | re.IGNORECASE)
+        if len(raw_blocks) > 1:
+            for i in range(1, len(raw_blocks), 2):
+                role = raw_blocks[i].lower()
+                content = raw_blocks[i+1].strip()
+                if content:
+                    raw_messages.append({"role": role, "content": content})
+        else:
+            if raw_instructions.strip():
+                raw_messages.append({"role": "system", "content": raw_instructions.strip()})
+
+        # Trigger strict schema validation for raw messages before pre-rendering
+        from promptops.validation import PromptSchema
+        from typing import cast, Any
+        try:
+            raw_val_dict = {
+                "name": name,
+                "description": description,
+                "variables": vars_data,
+                "metadata": skill_metadata.copy() if isinstance(skill_metadata, dict) else {},
+                "messages": raw_messages,
+                "testData": test_data,
+            }
+            # Inject defaults for fields required by PromptSchema
+            raw_val_dict.setdefault("model", "default")
+            raw_val_dict.setdefault("modelParameters", {"temperature": 0.0})
+            raw_val_dict.setdefault("evaluators", [])
+            
+            # Inject required metadata if missing
+            if not raw_val_dict.get("metadata"):
+                raw_val_dict["metadata"] = {}
+            raw_val_dict["metadata"].setdefault("domain", "unknown")
+            raw_val_dict["metadata"].setdefault("complexity", "low")
+            
+            # Inject a dummy user message if only one message is present
+            if "messages" in raw_val_dict and len(raw_val_dict["messages"]) == 1:
+                raw_val_dict["messages"] = list(raw_val_dict["messages"])
+                raw_val_dict["messages"].append({"role": "user", "content": "Execute."})
+
+            PromptSchema(**raw_val_dict)
+        except Exception as e:
+            raise ValueError(f"Schema validation failed for skill '{name}' in {path}: {e}")
+
+        # --- PASS 2: Jinja2 Pre-rendering & Final Validation ---
+        instructions = raw_instructions
+        # Render instructions using jinja to evaluate any macros (like load_yaml does)
+        try:
+            from promptops.engine import get_jinja_env
+            env = get_jinja_env(base_dir=str(PROMPTS_DIR))
+            if 'macros.' in instructions and not '{% import' in instructions:
+                instructions = '{% import "common/macros.j2" as macros %}\n' + instructions
+            template = env.from_string(instructions)
+            instructions = template.render()
+        except Exception as e:
+            raise ValueError(f"Template rendering failed for skill '{name}' in {path}: {e}")
+
+        # Split instructions into messages
+        messages = []
+        blocks = re.split(r'^\[(system|user|assistant|tool_call|tool_result|tool)\][\r\n]+', instructions, flags=re.MULTILINE | re.IGNORECASE)
+        if len(blocks) > 1:
+            for i in range(1, len(blocks), 2):
+                role = blocks[i].lower()
+                content = blocks[i+1].strip()
+                if content:
+                    messages.append({"role": role, "content": content})
+        else:
+            if instructions.strip():
+                messages.append({"role": "system", "content": instructions.strip()})
+
         skill_dict = {
             "name": name,
             "description": description,
@@ -537,8 +583,6 @@ def parse_skill_manifest(path: Path) -> Dict[str, Any]:
         }
         
         # Trigger strict schema validation for the skill section
-        from promptops.validation import PromptSchema
-        from typing import cast, Any
         try:
             # Inject defaults for fields required by PromptSchema but not normally present in skills.md
             val_dict = cast(dict[str, Any], skill_dict.copy())
