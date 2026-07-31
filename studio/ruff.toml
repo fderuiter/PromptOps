@@ -1,12 +1,5 @@
-[lint]
-select = ["TID251", "RUF100"]
+extend = "../pyproject.toml"
 
 [lint.flake8-tidy-imports.banned-api]
 "tools".msg = "Boundary violation: Cannot import tools from studio"
-"os.walk".msg = "Please use unified workspace utilities (e.g. walk_workspace, load_yaml) instead."
-"yaml.safe_load".msg = "Please use unified workspace utilities (e.g. walk_workspace, load_yaml) instead."
-"yaml.load".msg = "Please use unified workspace utilities (e.g. walk_workspace, load_yaml) instead."
 
-[lint.per-file-ignores]
-# Ignore TID251 in the unified workspace utilities file(s)
-"**/utils.py" = ["TID251"]

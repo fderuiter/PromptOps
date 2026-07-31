@@ -1,7 +1,4 @@
-import pytest
 from pathlib import Path
-import json
-import yaml
 from promptops.utils import (
     KeepUndefined,
     _find_root,
