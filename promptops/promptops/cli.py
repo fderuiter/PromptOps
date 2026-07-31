@@ -56,7 +56,7 @@ def get_parser():
     subparsers.add_parser("init", help="Initialize PromptOps in the current repository")
 
     # Verify
-    verify_parser = subparsers.add_parser("verify", help="Run the central verification script locally")
+    subparsers.add_parser("verify", help="Run the central verification script locally")
 
     # Validate
     validate_parser = subparsers.add_parser("validate", help="Validate prompt files")

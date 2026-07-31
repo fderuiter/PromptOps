@@ -1,10 +1,6 @@
-import math
 import pandas as pd
-import pytest
 from studio.helpers import sanitize_dataframe_records
 from promptops.utils import save_yaml, load_yaml
-from pathlib import Path
-import os
 
 def test_sanitize_dataframe_records_basic():
     # Test dictionary input
