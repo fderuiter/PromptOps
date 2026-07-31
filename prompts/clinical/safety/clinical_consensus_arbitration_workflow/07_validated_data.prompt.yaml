@@ -1,0 +1,27 @@
+name: Output Validated Clinical Data
+version: "1.0.0"
+description: Standardized final validated clinical report generation.
+metadata:
+  domain: clinical
+  complexity: medium
+  tags:
+    - clinical
+    - data
+variables:
+  - name: meta_orchestration_summary
+    description: Summary of consensus.
+    required: true
+model: gpt-4o-mini
+modelParameters:
+  temperature: 0.1
+messages:
+  - role: system
+    content: |
+      You are a clinical data publisher.
+  - role: user
+    content: |
+      Publish validated data: {{meta_orchestration_summary}}
+testData:
+  - inputs: {}
+    expected: "Validated Clinical Data: Unanimous clinical consensus established. Final status: APPROVED. No further action needed."
+evaluators: []

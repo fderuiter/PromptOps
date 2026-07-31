@@ -2,6 +2,7 @@
 import argparse
 import sys
 import logging
+import os
 from promptops.validation import validate_prompts
 from promptops.simulation import simulate_prompt
 from promptops.documentation import generate_docs
@@ -262,8 +263,14 @@ def main():
                     if final_state:
                         final_output_step_id = workflow_data.get('steps', [{}])[-1].get('step_id')
                         if final_output_step_id:
-                            final_output = final_state['steps'][final_output_step_id]['output']
-                            logger.info(f"Scenario Output:\n{final_output}")
+                            final_output = None
+                            if final_output_step_id in final_state['steps']:
+                                final_output = final_state['steps'][final_output_step_id]['output']
+                            elif final_state['steps']:
+                                last_key = list(final_state['steps'].keys())[-1]
+                                final_output = final_state['steps'][last_key]['output']
+                            if final_output is not None:
+                                logger.info(f"Scenario Output:\n{final_output}")
                 except Exception as e:
                     logger.error(f"Workflow test scenario failed: {e}")
                     sys.exit(1)
@@ -279,9 +286,15 @@ def main():
                 console.step_header("Simulation Finished")
                 final_output_step_id = workflow_data.get('steps', [{}])[-1].get('step_id')
                 if final_output_step_id:
-                    final_output = final_state['steps'][final_output_step_id]['output']
-                    logger.info("Final workflow output:")
-                    console.info(final_output)
+                    final_output = None
+                    if final_output_step_id in final_state['steps']:
+                        final_output = final_state['steps'][final_output_step_id]['output']
+                    elif final_state['steps']:
+                        last_key = list(final_state['steps'].keys())[-1]
+                        final_output = final_state['steps'][last_key]['output']
+                    if final_output is not None:
+                        logger.info("Final workflow output:")
+                        console.info(final_output)
 
         if getattr(args, 'json', False):
             console.json_output(fidelity_report)

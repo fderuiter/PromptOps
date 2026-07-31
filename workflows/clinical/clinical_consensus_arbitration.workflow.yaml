@@ -1,0 +1,64 @@
+name: Clinical Consensus Arbitration Workflow
+description: A clinical peer review workflow that executes three distinct expert steps and uses Jinja to parse and route them.
+inputs:
+- name: report_content
+  description: Patient clinical/medical report.
+- name: introduce_conflict
+  description: Whether to inject conflict ("true" or "false").
+steps:
+- step_id: oncologist_review
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/01_oncologist_review.prompt.yaml
+  map_inputs:
+    report_content: '{{inputs.report_content}}'
+    introduce_conflict: '{{inputs.introduce_conflict}}'
+- step_id: cardiologist_review
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/02_cardiologist_review.prompt.yaml
+  map_inputs:
+    report_content: '{{inputs.report_content}}'
+    introduce_conflict: '{{inputs.introduce_conflict}}'
+- step_id: toxicologist_review
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/03_toxicologist_review.prompt.yaml
+  map_inputs:
+    report_content: '{{inputs.report_content}}'
+    introduce_conflict: '{{inputs.introduce_conflict}}'
+- step_id: meta_orchestration
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/04_meta_orchestrator.prompt.yaml
+  map_inputs:
+    oncologist_review: '{{steps.oncologist_review.output}}'
+    cardiologist_review: '{{steps.cardiologist_review.output}}'
+    toxicologist_review: '{{steps.toxicologist_review.output}}'
+- step_id: arbitration
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/05_arbitration.prompt.yaml
+  map_inputs:
+    consensus_reached: '{{ "{{" }} "Approved" in steps.oncologist_review.output and "Approved" in steps.cardiologist_review.output and "Approved" in steps.toxicologist_review.output {{ "}}" }}'
+    meta_orchestration_summary: '{{steps.meta_orchestration.output}}'
+  next:
+    - condition: '{{ "{{" }} "disagreement" in steps.arbitration.output or "Approved" not in steps.oncologist_review.output or "Approved" not in steps.cardiologist_review.output or "Approved" not in steps.toxicologist_review.output {{ "}}" }}'
+      target: manual_audit
+    - target: validated_data
+- step_id: manual_audit
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/06_manual_audit.prompt.yaml
+  map_inputs:
+    meta_orchestration_summary: '{{steps.meta_orchestration.output}}'
+  next: []
+- step_id: validated_data
+  prompt_file: prompts/clinical/safety/clinical_consensus_arbitration_workflow/07_validated_data.prompt.yaml
+  map_inputs:
+    meta_orchestration_summary: '{{steps.meta_orchestration.output}}'
+  next: []
+testData:
+- inputs:
+    report_content: "Patient oncology report with cardiac risk assessment."
+    introduce_conflict: "false"
+- inputs:
+    report_content: "Patient oncology report with cardiac risk assessment."
+    introduce_conflict: "true"
+version: 0.1.0
+metadata:
+  domain: clinical
+  topic: clinical_safety
+  complexity: medium
+  tags:
+    - clinical
+    - review
+    - consensus
