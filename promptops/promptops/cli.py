@@ -62,6 +62,7 @@ def get_parser():
     validate_parser = subparsers.add_parser("validate", help="Validate prompt files")
     validate_parser.add_argument("--dir", help="Directory containing prompts", default=".")
     validate_parser.add_argument("--strict", action="store_true", help="Enable strict validation")
+    validate_parser.add_argument("--skip-semantic", action="store_true", help="Skip semantic validation checks")
     validate_parser.add_argument("files", nargs="*", help="Specific files to validate and format (updates last_modified)")
 
     # Simulate
@@ -145,7 +146,7 @@ def main():
             logger.error(f"Failed to execute verification script: {e}")
             sys.exit(1)
     elif args.command == "validate":
-        success = validate_prompts(args.dir, strict=args.strict, files=args.files)
+        success = validate_prompts(args.dir, strict=args.strict, files=args.files, skip_semantic=args.skip_semantic)
         sys.exit(0 if success else 1)
     elif args.command == "simulate":
         target_file = args.file_flag or args.file
