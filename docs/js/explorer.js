@@ -66,23 +66,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    // Determine path prefix based on whether we are at root or in a subfolder
-    const isRoot = window.location.pathname.endsWith("index.html") && window.location.pathname.split("/").length <= 2;
-    // mkdocs will serve from root, so we can probably just use relative path from the current page
-    let basePath = window.location.pathname.includes("/docs/") ? "../" : "./";
-    fetch("js/tools_catalog.json").then(res => {
-        if (!res.ok) {
-            // try alternative path
-            return fetch("../js/tools_catalog.json");
+    // Determine path prefix based on the script location to support multi-level static folders
+    const currentScript = document.currentScript || document.querySelector('script[src*="explorer.js"]');
+    let basePath = "./";
+    if (currentScript) {
+        const src = currentScript.getAttribute("src");
+        const index = src.indexOf("js/explorer.js");
+        if (index !== -1) {
+            basePath = src.substring(0, index);
         }
-        return res;
-    }).then(res => res.json()).then(data => {
-        allTools = data;
-        renderTools(allTools);
-    }).catch(e => {
-        console.error("Failed to load catalog", e);
-        listContainer.innerHTML = "<p>Failed to load tool schemas.</p>";
-    });
+    }
+    
+    fetch(`${basePath}js/tools_catalog.json`)
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            allTools = data;
+            renderTools(allTools);
+        })
+        .catch(e => {
+            console.error("Failed to load catalog", e);
+            listContainer.innerHTML = "<p>Failed to load tool schemas.</p>";
+        });
     
     searchInput.addEventListener("input", (e) => {
         const query = e.target.value.toLowerCase();
