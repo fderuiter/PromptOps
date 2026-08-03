@@ -140,3 +140,71 @@ def test_check_semantic_duplicates_network_error(mock_console_warn, mock_urlopen
     assert res is True
     mock_console_warn.assert_called_once()
     assert "network unreachable" in mock_console_warn.call_args[0][0]
+
+
+def test_prompt_schema_validation_test_data_types():
+    from promptops.validation import PromptSchema
+    import pytest
+    from pydantic import ValidationError
+
+    base_prompt = {
+        "name": "Test Prompt",
+        "version": "1.0.0",
+        "description": "Description",
+        "model": "gpt-4",
+        "modelParameters": {"temperature": 0.5},
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant. {{topic}}"},
+            {"role": "user", "content": "Tell me a joke about {{topic}}"}
+        ],
+        "variables": [{"name": "topic", "description": "The topic of the joke"}],
+        "evaluators": []
+    }
+
+    # 1. Valid test case (matching variables and types)
+    valid_prompt = dict(base_prompt)
+    valid_prompt["testData"] = [
+        {
+            "inputs": {"topic": "Birds"},
+            "expected": "Why did the bird cross the road?"
+        }
+    ]
+    schema = PromptSchema(**valid_prompt)
+    assert schema is not None
+
+    # 2. Invalid input type (dict/list instead of primitive)
+    invalid_input_type = dict(base_prompt)
+    invalid_input_type["testData"] = [
+        {
+            "inputs": {"topic": {"nested": "dict"}},
+            "expected": "some expected string"
+        }
+    ]
+    with pytest.raises(ValidationError) as exc:
+        PromptSchema(**invalid_input_type)
+    assert "primitive type" in str(exc.value)
+
+    # 3. Non-string expected output
+    invalid_expected_type = dict(base_prompt)
+    invalid_expected_type["testData"] = [
+        {
+            "inputs": {"topic": "Birds"},
+            "expected": 12345
+        }
+    ]
+    with pytest.raises(ValidationError) as exc:
+        PromptSchema(**invalid_expected_type)
+    assert "Expected output in testData must be a string" in str(exc.value)
+
+    # 4. Undeclared input variable
+    undeclared_input_var = dict(base_prompt)
+    undeclared_input_var["testData"] = [
+        {
+            "inputs": {"topic": "Birds", "undeclared": "value"},
+            "expected": "some expected string"
+        }
+    ]
+    with pytest.raises(ValidationError) as exc:
+        PromptSchema(**undeclared_input_var)
+    assert "not declared in the variables section" in str(exc.value)
+

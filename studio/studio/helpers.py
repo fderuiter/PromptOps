@@ -39,11 +39,11 @@ def render_schema_form(
     skip_fields: List[str] = None,
     key_prefix: str = "",
     layout_config: Dict[str, List[str]] = None,
-    layout_type: str = "tabs"
+    layout_type: str = "expanders"
 ) -> Dict[str, Any]:
     """
     Dynamically generates Streamlit inputs from a Pydantic model's JSON schema.
-    Can accept a layout configuration mapping to render fields inside tabs or collapsible sections.
+    Can accept a layout configuration mapping to render fields inside collapsible sections.
     """
     if skip_fields is None:
         skip_fields = []
@@ -96,21 +96,13 @@ def render_schema_form(
         return data_dict
 
     if layout_config:
-        if layout_type == "tabs":
-            tabs = st.tabs(list(layout_config.keys()))
-            for tab, (tab_name, fields) in zip(tabs, layout_config.items()):
-                with tab:
-                    for field_name in fields:
-                        if field_name in skip_fields or field_name not in properties:
-                            continue
-                        data = render_field(field_name, properties[field_name], data)
-        else: # collapsible / expanders
-            for section_title, fields in layout_config.items():
-                with st.expander(section_title, expanded=True):
-                    for field_name in fields:
-                        if field_name in skip_fields or field_name not in properties:
-                            continue
-                        data = render_field(field_name, properties[field_name], data)
+        # collapsible / expanders
+        for section_title, fields in layout_config.items():
+            with st.expander(section_title, expanded=True):
+                for field_name in fields:
+                    if field_name in skip_fields or field_name not in properties:
+                        continue
+                    data = render_field(field_name, properties[field_name], data)
     else:
         for field_name, field_info in properties.items():
             if field_name in skip_fields:

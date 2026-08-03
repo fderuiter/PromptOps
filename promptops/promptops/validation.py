@@ -191,21 +191,40 @@ class PromptSchema(BaseModel):
 
     @model_validator(mode='after')
     def check_test_data_types(self):
-        """Warn if testData contains non-string types that will be coerced to strings."""
+        """Validate that testData contains valid types matching the schema."""
         if not self.testData:
             return self
             
+        declared_var_names = {v.name for v in self.variables}
+        
         for case in self.testData:
-            if isinstance(case, dict):
-                # Check inputs
-                inputs = case.get('inputs', {})
-                if isinstance(inputs, dict):
-                    pass
+            if not isinstance(case, dict):
+                raise ValueError(f"Each test case in testData must be a dictionary, got {type(case).__name__}")
+            
+            # Check inputs / vars
+            inputs = case.get('inputs')
+            if inputs is None:
+                inputs = case.get('vars', {})
                 
-                # Check expected
-                expected = case.get('expected')
-                if expected is not None and not isinstance(expected, str):
-                    pass
+            if not isinstance(inputs, dict):
+                raise ValueError(f"testData inputs must be a dictionary, got {type(inputs).__name__}")
+            
+            for k, v in inputs.items():
+                if k not in declared_var_names:
+                    raise ValueError(f"testData input variable '{k}' is not declared in the variables section")
+                if not isinstance(v, (str, int, float, bool)):
+                    raise ValueError(f"testData input value for '{k}' must be a primitive type (str, int, float, bool), got {type(v).__name__}")
+            
+            # Check expected
+            expected = case.get('expected')
+            if expected is not None:
+                if isinstance(expected, list):
+                    for idx, item in enumerate(expected):
+                        if not isinstance(item, str):
+                            raise ValueError(f"Expected output list item at index {idx} in testData must be a string, got {type(item).__name__}")
+                elif not isinstance(expected, str):
+                    raise ValueError(f"Expected output in testData must be a string, got {type(expected).__name__}")
+                
         return self
 
 class EvaluatorRule(BaseModel):
