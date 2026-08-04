@@ -42,14 +42,14 @@ def test_extract_system_instructions():
 def test_get_modified_prompt_files(mock_run):
     # Simulate git status output
     mock_stdout = (
-        " M prompts/communication/entertainment/joke_workflow/01_topic_generator.prompt.yaml\n"
-        "A  prompts/non_existent.prompt.yaml\n"  # Doesn't exist, should be skipped
-        "?? prompts/communication/entertainment/joke_workflow/02_joke_writer.prompt.yaml\n"
+        " M tests/resources/joke_workflow/01_topic_generator.prompt.yaml\n"
+        "A  tests/resources/non_existent.prompt.yaml\n"  # Doesn't exist, should be skipped
+        "?? tests/resources/joke_workflow/02_joke_writer.prompt.yaml\n"
     )
     mock_run.return_value = MagicMock(stdout=mock_stdout)
 
     # Let's check. Since joke_workflow files actually exist in the workspace, we should get those that exist.
-    modified = get_modified_prompt_files(str(ROOT / "prompts"))
+    modified = get_modified_prompt_files(str(ROOT / "tests" / "resources"))
     
     # Check that 01_topic_generator.prompt.yaml is in modified files
     # 02_joke_writer.prompt.yaml is also tracked as untracked, it exists and should be in modified files
@@ -68,8 +68,8 @@ def test_check_semantic_duplicates_no_key(mock_warn):
     if "LLM_API_KEY_SHADOW" in os.environ:
         del os.environ["LLM_API_KEY_SHADOW"]
 
-    modified_files = [ROOT / "prompts" / "communication" / "entertainment" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
-    res = check_semantic_duplicates(str(ROOT / "prompts"), modified_files)
+    modified_files = [ROOT / "tests" / "resources" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
+    res = check_semantic_duplicates(str(ROOT / "tests" / "resources"), modified_files)
     assert res is True
     mock_warn.assert_called_once_with("Skipping semantic audit: LLM_API_KEY or LLM_API_KEY_SHADOW is not set.")
 
@@ -92,8 +92,8 @@ def test_check_semantic_duplicates_success(mock_urlopen):
     }).encode("utf-8")
     mock_urlopen.return_value.__enter__.return_value = mock_response
 
-    modified_files = [ROOT / "prompts" / "communication" / "entertainment" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
-    res = check_semantic_duplicates(str(ROOT / "prompts"), modified_files)
+    modified_files = [ROOT / "tests" / "resources" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
+    res = check_semantic_duplicates(str(ROOT / "tests" / "resources"), modified_files)
     assert res is True
 
 
@@ -108,7 +108,7 @@ def test_check_semantic_duplicates_detected(mock_console_error, mock_urlopen):
             "message": {
                 "content": json.dumps({
                     "is_duplicate": True,
-                    "matching_file": "prompts/communication/entertainment/joke_workflow/02_joke_writer.prompt.yaml",
+                    "matching_file": "tests/resources/joke_workflow/02_joke_writer.prompt.yaml",
                     "reason": "They are identical comedian prompts."
                 })
             }
@@ -116,12 +116,12 @@ def test_check_semantic_duplicates_detected(mock_console_error, mock_urlopen):
     }).encode("utf-8")
     mock_urlopen.return_value.__enter__.return_value = mock_response
 
-    modified_files = [ROOT / "prompts" / "communication" / "entertainment" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
-    res = check_semantic_duplicates(str(ROOT / "prompts"), modified_files)
+    modified_files = [ROOT / "tests" / "resources" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
+    res = check_semantic_duplicates(str(ROOT / "tests" / "resources"), modified_files)
     assert res is False
 
     # Check that console.error was called with expected details
-    any_dup_msg = any("duplicate of prompts/communication/entertainment/joke_workflow/02_joke_writer.prompt.yaml" in call[0][0] for call in mock_console_error.call_args_list)
+    any_dup_msg = any("duplicate of tests/resources/joke_workflow/02_joke_writer.prompt.yaml" in call[0][0] for call in mock_console_error.call_args_list)
     any_reason_msg = any("They are identical comedian prompts." in call[0][0] for call in mock_console_error.call_args_list)
     assert any_dup_msg
     assert any_reason_msg
@@ -134,8 +134,8 @@ def test_check_semantic_duplicates_network_error(mock_console_warn, mock_urlopen
     # Simulate urllib error
     mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
 
-    modified_files = [ROOT / "prompts" / "communication" / "entertainment" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
-    res = check_semantic_duplicates(str(ROOT / "prompts"), modified_files)
+    modified_files = [ROOT / "tests" / "resources" / "joke_workflow" / "01_topic_generator.prompt.yaml"]
+    res = check_semantic_duplicates(str(ROOT / "tests" / "resources"), modified_files)
     # Should skip gracefully and return True
     assert res is True
     mock_console_warn.assert_called_once()

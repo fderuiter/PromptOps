@@ -7,7 +7,6 @@ This directory contains **Meta-Prompts**, agent scripts, and specialized utiliti
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Why this directory exists?](#why-this-directory-exists)
 - [Tool Descriptions](#tool-descriptions)
   - [Architecture Review Pipeline](#architecture-review-pipeline)

@@ -96,4 +96,4 @@ python3 tools/tools/scripts/governance_manifest_generator.py
 ```
 ---
 
-[Return to Documentation Index](../../docs/index.md)
+[Return to Documentation Index](../../../docs/index.md)
