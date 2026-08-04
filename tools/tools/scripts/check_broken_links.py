@@ -27,6 +27,7 @@ from promptops.utils import iter_markdown_files, ROOT, PROMPTS_DIR, WORKFLOWS_DI
 # Configuration
 DOCS_DIR = ROOT / "docs"
 ROOT_DIR = ROOT
+TOOLS_DIR = ROOT / "tools"
 
 # Regex to find links: [text](url)
 # This is a simple regex and might miss some edge cases, but covers standard markdown links
@@ -62,6 +63,8 @@ def get_all_markdown_files() -> List[Path]:
         files.extend(list(iter_markdown_files(PROMPTS_DIR)))
     if WORKFLOWS_DIR.exists():
         files.extend(list(iter_markdown_files(WORKFLOWS_DIR)))
+    if TOOLS_DIR.exists():
+        files.extend(list(iter_markdown_files(TOOLS_DIR)))
     # Also check root files like README.md, CONTRIBUTING.md
     for root, dirs, filenames in walk_workspace(ROOT_DIR):
         if Path(root).resolve() == ROOT_DIR.resolve():
