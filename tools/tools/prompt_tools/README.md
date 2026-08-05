@@ -17,7 +17,7 @@ This directory contains **Meta-Prompts**, agent scripts, and specialized utiliti
 - [Usage Guide](#usage-guide)
   - [Prerequisites](#prerequisites)
   - [Using Markdown Tools (`.md`)](#using-markdown-tools-md)
-  - [Using YAML Prompts (`.prompt.yaml`)](#using-yaml-prompts-promptyaml)
+  - [Using Consolidated Skills (`skills.md`)](#using-consolidated-skills-skillsmd)
 - [Contribution](#contribution)
 
 ---
@@ -84,23 +84,11 @@ Most tools in this directory are designed to be used with an LLM (like ChatGPT o
 3. Paste it into your LLM chat interface as the "System" or first "User" message.
 4. Provide the target content (e.g., the raw prompt you want to sanitize) as the next message.
 
-### Using YAML Prompts (`.prompt.yaml`)
-These files follow the repository's standard schema and can be executed using the workflow engine as a standalone simulation.
-
-**Example: Running the Prompt Optimizer**
-
-```bash
-# Provide the task variable via the -i flag
-promptops workflow tools/prompt_tools/L5_prompt_optimizer.prompt.yaml -i task="Write a Python script to scrape a website"
-```
-
-**Example: Running with Verbose Output**
-
-To see the exact inputs being passed into the prompt messages during the simulation:
-
-```bash
-promptops workflow tools/prompt_tools/L5_prompt_optimizer.prompt.yaml -i task="Draft a project brief" -v
-```
+### Using Consolidated Skills (`skills.md`)
+The Prompt Optimizer has been consolidated into the [`skills.md`](./skills.md) manifest to prevent documentation drift. To use it:
+1. Open [`skills.md`](./skills.md) and scroll to the **Prompt Optimizer** section.
+2. Copy the system prompt and instructions from the `Core Instructions` section.
+3. Paste them into your LLM chat interface to optimize your prompts.
 
 ---
 

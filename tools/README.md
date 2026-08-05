@@ -8,7 +8,7 @@
 | Directory | Type | Purpose |
 | :--- | :--- | :--- |
 | **[`scripts/`](tools/scripts/README.md)** | 🐍 Python | **Automation & Validation.** Executable code for CI/CD, linting, doc generation, and testing. <br> *Key tool: `validate_prompts.sh`* |
-| **[`prompt_tools/`](tools/prompt_tools/README.md)** | 🧠 Prompts | **Meta-Prompting.** LLM-based tools for refining, sanitizing, and architecting other prompts. <br> *Key tool: `L5_prompt_optimizer`* |
+| **[`prompt_tools/`](tools/prompt_tools/README.md)** | 🧠 Prompts | **Meta-Prompting.** LLM-based tools for refining, sanitizing, and architecting other prompts. <br> *Key tool: `skills.md` (Prompt Optimizer)* |
 
 ## 🚀 Quick Start
 
