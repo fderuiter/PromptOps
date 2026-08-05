@@ -1,0 +1,10 @@
+.venv/
+.git/
+.github/
+__pycache__/
+**/*.pyc
+node_modules/
+build/
+dist/
+.tox/
+tests/
