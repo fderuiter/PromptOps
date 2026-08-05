@@ -90,6 +90,92 @@ def build_schema(prompt_content_or_vars):
         "required": required
     }
 
+def build_routing_map() -> dict[str, dict[str, Any]]:
+    """
+    Builds an in-memory routing map of active tools synchronously.
+    It uses the existing CLI agent discovery engine to get active,
+    non-overridden tools, guaranteeing zero duplicates and matching reports.
+    """
+    from promptops.agent import get_tools_info
+    from promptops.utils import get_tool_name_mcp, parse_skill_manifest, load_yaml, PROMPTS_DIR
+    from pathlib import Path
+
+    routing_map = {}
+    try:
+        tools_info, manifests, prompts, skills, workflows = get_tools_info(PROMPTS_DIR)
+    except Exception as e:
+        logger.error(f"Error in CLI discovery engine get_tools_info: {e}")
+        return routing_map
+
+    # Build manifest skills helper map
+    manifest_skills = {}
+    for m in manifests:
+        manifest_skills[m["path"]] = m["skills"]
+
+    # Process skills
+    for s in skills:
+        tool_name = s["tool_name"]
+        path_str = s["path"]
+        original_name = s["original_name"]
+        
+        # Look up the actual skill dict in the parsed manifest skills
+        skill_dict = None
+        for sd in manifest_skills.get(path_str, []):
+            if get_tool_name_mcp(Path(path_str), sd) == tool_name:
+                skill_dict = sd
+                break
+        if not skill_dict:
+            for sd in manifest_skills.get(path_str, []):
+                if sd.get("name") == original_name:
+                    skill_dict = sd
+                    break
+                    
+        if skill_dict:
+            routing_map[tool_name] = {
+                "type": "skill",
+                "path": path_str,
+                "skill": skill_dict,
+                "description": skill_dict.get("description", "Agent Skill"),
+                "variables": skill_dict.get("variables", []),
+                "original_name": original_name,
+            }
+            
+    # Process prompts (active, non-overridden prompts only)
+    for p in prompts:
+        tool_name = p["tool_name"]
+        path_str = p["path"]
+        try:
+            content = load_yaml(path_str)
+            if content:
+                routing_map[tool_name] = {
+                    "type": "prompt",
+                    "path": path_str,
+                    "content": content,
+                    "description": content.get("description", "Prompt Tool"),
+                    "original_name": p["original_name"],
+                }
+        except Exception as e:
+            logger.error(f"Error loading prompt {path_str}: {e}")
+
+    # Process workflows
+    for w in workflows:
+        tool_name = w["tool_name"]
+        path_str = w["path"]
+        try:
+            content = load_yaml(path_str)
+            if content:
+                routing_map[tool_name] = {
+                    "type": "workflow",
+                    "path": path_str,
+                    "content": content,
+                    "description": content.get("description", "Workflow Tool"),
+                    "original_name": w["original_name"],
+                }
+        except Exception as e:
+            logger.error(f"Error loading workflow {path_str}: {e}")
+
+    return routing_map
+
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
     global active_session
@@ -97,54 +183,24 @@ async def handle_list_tools() -> list[types.Tool]:
         active_session = server.request_context.session
     except:
         active_session = None
+
+    routing_map = build_routing_map()
     tools = []
-    
-    logger.info("Scanning for skill manifests...")
-    from promptops.utils import iter_skill_manifests, parse_skill_manifest, iter_prompt_files, iter_workflow_files, WORKFLOWS_DIR
-    for path in iter_skill_manifests(PROMPTS_DIR):
-        try:
-            manifest = parse_skill_manifest(path)
-            manifest["metadata"].get("domain") or path.parent.name
-            for skill in manifest["skills"]:
-                full_name = get_tool_name_mcp(path, skill)
-
-                tools.append(types.Tool(
-                    name=full_name,
-                    description=skill.get("description", "Agent Skill"),
-                    inputSchema=build_schema(skill.get("variables", []))
-                ))
-        except Exception as e:
-            logger.error(f"Error parsing manifest {path}: {e}")
-
-    logger.info("Scanning for individual prompt files...")
-    for path in iter_prompt_files(PROMPTS_DIR):
-        try:
-            content = load_yaml(path)
-            if not content: continue
-            name = get_tool_name_mcp(path, content)
+    for name, info in routing_map.items():
+        if info["type"] == "skill":
             tools.append(types.Tool(
                 name=name,
-                description=content.get("description", "Prompt Tool"),
-                inputSchema=build_schema(content)
+                description=info["description"],
+                inputSchema=build_schema(info["variables"])
             ))
-        except Exception as e:
-            logger.error(f"Error parsing prompt {path}: {e}")
-
-    logger.info("Scanning for workflow files...")
-    for path in iter_workflow_files(WORKFLOWS_DIR):
-        try:
-            content = load_yaml(path)
-            if not content: continue
-            name = get_tool_name_mcp(path, content)
+        elif info["type"] in ("prompt", "workflow"):
             tools.append(types.Tool(
                 name=name,
-                description=content.get("description", "Workflow Tool"),
-                inputSchema=build_schema(content)
+                description=info["description"],
+                inputSchema=build_schema(info["content"])
             ))
-        except Exception as e:
-            logger.error(f"Error parsing workflow {path}: {e}")
-
-    logger.info(f"Discovered {len(tools)} tools.")
+            
+    logger.info(f"Discovered {len(tools)} tools via routing map.")
     return tools
 
 @server.call_tool()
@@ -152,75 +208,66 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
     if arguments is None:
         arguments = {}
         
-    from promptops.utils import iter_skill_manifests, parse_skill_manifest, iter_prompt_files, iter_workflow_files, WORKFLOWS_DIR
     from promptops.engine import simulate_prompt_execution, run_workflow
 
-    for path in iter_prompt_files(PROMPTS_DIR):
+    routing_map = build_routing_map()
+    
+    if name not in routing_map:
+        raise ValueError(f"Tool not found: {name}")
+        
+    info = routing_map[name]
+    path_str = info["path"]
+    
+    if info["type"] == "prompt":
+        content = info["content"]
         try:
-            content = load_yaml(path)
-            if content and get_tool_name_mcp(path, content) == name:
-                try:
-                    fidelity: dict[str, Any] = {}
-                    out = simulate_prompt_execution(content, arguments, prompt_file=str(path), strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
-                    return [types.TextContent(type="text", text=f"--- Executing Prompt: {content.get('name')} ---\n\n{out}")]
-                except ProomptsValidationError as e:
-                    return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
-                except Exception as e:
-                    return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
-        except:
-            continue
-
-    for path in iter_workflow_files(WORKFLOWS_DIR):
+            fidelity: dict[str, Any] = {}
+            out = simulate_prompt_execution(content, arguments, prompt_file=path_str, strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
+            return [types.TextContent(type="text", text=f"--- Executing Prompt: {content.get('name')} ---\n\n{out}")]
+        except ProomptsValidationError as e:
+            return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
+            
+    elif info["type"] == "workflow":
+        content = info["content"]
         try:
-            content = load_yaml(path)
-            if content and get_tool_name_mcp(path, content) == name:
-                try:
-                    fidelity = {}
-                    state = run_workflow(str(path), arguments, verbose=False, strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
-                    out = ""
-                    if state:
-                        final_output_step_id = content.get('steps', [{}])[-1].get('step_id')
-                        if final_output_step_id and final_output_step_id in state['steps']:
-                            out = state['steps'][final_output_step_id]['output']
-                    return [types.TextContent(type="text", text=f"--- Executing Workflow: {content.get('name')} ---\n\n{out}")]
-                except ProomptsValidationError as e:
-                    return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
-                except Exception as e:
-                    return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
-        except:
-            continue
-
-    # Check skill manifests
-    for path in iter_skill_manifests(PROMPTS_DIR):
+            fidelity = {}
+            state = run_workflow(path_str, arguments, verbose=False, strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
+            out = ""
+            if state:
+                final_output_step_id = content.get('steps', [{}])[-1].get('step_id')
+                if final_output_step_id and final_output_step_id in state['steps']:
+                    out = state['steps'][final_output_step_id]['output']
+            return [types.TextContent(type="text", text=f"--- Executing Workflow: {content.get('name')} ---\n\n{out}")]
+        except ProomptsValidationError as e:
+            return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
+            
+    elif info["type"] == "skill":
+        skill = info["skill"]
         try:
-            manifest = parse_skill_manifest(path)
-            manifest["metadata"].get("domain") or path.parent.name
-            for skill in manifest["skills"]:
-                full_name = get_tool_name_mcp(path, skill)
-
-                if full_name == name:
-                    try:
-                        content = {
-                            "name": skill["name"],
-                            "description": skill.get("description", ""),
-                            "variables": skill.get("variables", []),
-                            "messages": [{"role": "system", "content": skill.get("instructions", "")}],
-                            "testData": skill.get("testData", [])
-                        }
-                        fidelity = {}
-                        out = simulate_prompt_execution(content, arguments, prompt_file=str(path), strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
-                        return [types.TextContent(
-                            type="text",
-                            text=f"--- Executing Skill: {skill['name']} ---\n\n{out}"
-                        )]
-                    except ProomptsValidationError as e:
-                        return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
-                    except Exception as e:
-                        return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
-        except:
-            continue
-
-    raise ValueError(f"Tool not found: {name}")
+            content = {
+                "name": skill["name"],
+                "description": skill.get("description", ""),
+                "variables": skill.get("variables", []),
+                "messages": [{"role": "system", "content": skill.get("instructions", "")}],
+                "testData": skill.get("testData", [])
+            }
+            fidelity = {}
+            out = simulate_prompt_execution(content, arguments, prompt_file=path_str, strict_mode=False, chaos_mode=False, fidelity_report=fidelity)
+            return [types.TextContent(
+                type="text",
+                text=f"--- Executing Skill: {skill['name']} ---\n\n{out}"
+            )]
+        except ProomptsValidationError as e:
+            return [types.TextContent(type="text", text=f"--- Validation Error ---\n\nResponse validation failed for '{name}': {e}")]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"--- Execution Error ---\n\nExecution failed for '{name}': {e}")]
+            
+    else:
+        raise ValueError(f"Unknown tool type: {info['type']}")
 
 async def run():
     global main_loop
