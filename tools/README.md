@@ -23,7 +23,7 @@ Before submitting any changes, run the master validation script:
 ### 2. Optimize a Prompt
 Use the **Prompt Optimizer** to improve your prompt's quality:
 
-1. Copy content from [`tools/tools/prompt_tools/L5_prompt_optimizer.prompt.yaml`](tools/prompt_tools/L5_prompt_optimizer.prompt.yaml).
+1. Copy content from [`tools/tools/prompt_tools/skills.md`](tools/prompt_tools/skills.md).
 2. Paste into your LLM along with your draft prompt.
 
 ## 📚 Detailed Documentation
