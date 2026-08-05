@@ -77,7 +77,7 @@ Links or relative paths to supporting docs/resources.
    * Add missing metadata values (preserve original dates unless instructed otherwise).
    * Move any unmapped text under **Additional Notes**.
 1. **Run** `./scripts/validate_prompts.sh` to ensure YAML linting passes.
-1. **Validate** prompt schema with `python scripts/validate_prompt_schema.py`.
+1. **Validate** prompt schema with `uv run promptops validate`.
 1. **Commit** changes in logical chunks and push the branch.
 1. **Open** a PR and request review from repository maintainers.
 

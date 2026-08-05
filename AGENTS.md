@@ -34,7 +34,7 @@ pip install -r requirements.txt
 ./scripts/validate_prompts.sh
 
 # Run specific schema validation for prompts
-python3 tools/tools/scripts/validate_prompt_schema.py
+uv run promptops validate
 
 # Lint YAML files strictly
 yamllint .
@@ -46,7 +46,7 @@ yamllint .
 
 Testing in this repository means verifying **schema compliance** and **logic correctness** of prompts.
 
-- **Schema Validation**: handled by `validate_prompt_schema.py`. Ensure all required fields (`name`, `model`, `messages`) are present.
+- **Schema Validation**: handled by the unified CLI tool `uv run promptops validate`. Ensure all required fields (`name`, `model`, `messages`) are present.
 - **Logic Verification**: use the `testData` field in your prompt file. This allows simulation tools to verify the prompt's output against expected results.
 - **Workflow Simulation**: use `promptops workflow` to simulate complex multi-step prompt chains.
 

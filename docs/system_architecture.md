@@ -19,23 +19,21 @@ graph TD
     B -->|Contains| C1
     B -->|Contains| C2
 
-    subgraph "The Engine Room (tools/tools/scripts/)"
-        D1(check_prompts.py)
-        D2(validate_prompt_schema.py)
-        D3(promptops workflow)
+    subgraph "The Engine Room (promptops)"
+        D1(promptops validate)
+        D2(promptops workflow)
     end
 
     %% Flow of Validation
     C1 -->|Validated by| D1
-    C1 -->|Schema Checked by| D2
-    C2 -->|Simulated by| D3
+    C2 -->|Simulated by| D2
 
     subgraph "Output Artifacts"
         E1["docs/<br>(Markdown site)"]
         E2[Simulation Logs]
     end
 
-    D3 -->|Outputs| E2
+    D2 -->|Outputs| E2
 
     classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
     classDef highlight fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
@@ -66,8 +64,7 @@ A unique feature of this repository is the ability to **simulate** workflow exec
 
 ### 4. The Validation Pipeline (`validate_prompts.sh`)
 A comprehensive suite of scripts ensures repository health and consistency.
-- **`validate_prompt_schema.py`**: Enforces strict Pydantic schemas on all prompt YAML files.
-- **`check_prompts.py`**: Verifies file naming conventions and ensures every directory has an `overview.md`.
+- **`promptops validate`**: Enforces strict schemas and naming conventions on prompt files, and manages modification timestamps.
 - **`yamllint`**: Checks for YAML syntax errors and formatting consistency.
 - **`check_broken_links.py`**: Scans documentation for broken internal links.
 
