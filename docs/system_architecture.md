@@ -73,6 +73,13 @@ Documentation is treated as a first-class build artifact, automatically generate
 - **`promptops docs`**: Regenerates the main `docs/index.md` based on current prompt metadata.
 - **Workflow Diagrams**: Integrated into the documentation generation process, visualizing `.workflow.yaml` files using Mermaid.js.
 
+### 6. Hybrid CD & Release Pipeline
+The repository leverages GitHub Actions to completely automate build, packaging, deployment, and container release processes.
+- **SDK Package Publishing**: When a release tag (`v*`) is pushed, the `promptops` core package is built into a wheel/sdist and automatically published to PyPI using encrypted repository secrets.
+- **Visual Editor (Managed PaaS)**: Merges to the `main` branch trigger continuous deployment of the Streamlit-based visual editor UI to Streamlit Cloud.
+- **Protocol Server (GHCR)**: On every tagged release, a lightweight, highly optimized Docker container for the `mcp_server.py` daemon is built and published directly to the GitHub Container Registry (GHCR).
+- **Quality & Safety Guardrails**: All packaging and deployment workflows are strictly dependent on pre-flight checks (`verify` tests & schemas and `vibe-audit` vibe monitors) passing completely.
+
 ## Directory Structure
 
 - **`prompts/`**: The source of truth for all prompt definitions, with discovery driven by metadata tags rather than deep directory nesting.
