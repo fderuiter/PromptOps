@@ -33,8 +33,4 @@ Prompts are stored as `.prompt.yaml` files. The previous JSON format has been re
 - [Scientific](https://github.com/fderuiter/proompts/blob/main/prompts/scientific/overview.md) - Laboratory and research prompts
 - [Technical](https://github.com/fderuiter/proompts/blob/main/prompts/technical/overview.md) - Software engineering and DevOps
 
-## Historical References
-
-- [JSON to YAML Migration](json_to_yaml_migration.md) - Migration guide (historical)
-
 Add any new guidance here as the repository grows.

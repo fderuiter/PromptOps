@@ -15,8 +15,8 @@ tags:
 
 ---
 
-## Skill: Prompt Optimizer 1.0
-<!-- VALIDATION_METADATA: {"variables": [{"name": "task", "description": "description of the task to optimize", "required": true}], "metadata": {"domain": "general", "complexity": "medium", "tags": ["prompt", "optimizer", "skill"], "requires_context": false}} -->
+## Skill: Prompt Optimizer
+<!-- VALIDATION_METADATA: {"variables": [{"name": "task", "description": "description of the task to optimize", "required": true}], "metadata": {"domain": "general", "complexity": "medium", "tags": ["prompt", "optimizer", "skill"]}} -->
 ### Description
 Iteratively refine an instruction set for a given task.
 
@@ -49,5 +49,11 @@ Use concise language and avoid introducing new objectives.
 Expected JSON/YAML structure matching the schema rules.
 
 ### Few-Shot Assertions
-Input Context: "{}"
-Asserted Output: "poem about a cat"
+**Input Context:**
+```yaml
+{}
+```
+**Asserted Output:**
+```text
+## V1
+```

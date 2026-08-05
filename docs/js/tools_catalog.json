@@ -7474,22 +7474,6 @@
     }
   },
   {
-    "name": "communication__Joke_Writer",
-    "description": "Writes a joke about a given topic.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "topic": {
-          "type": "string",
-          "description": "The topic of the joke"
-        }
-      },
-      "required": [
-        "topic"
-      ]
-    }
-  },
-  {
     "name": "communication__Lay_Language_Summary_Creation",
     "description": "Summarize trial results for lay audience with rigorous formatting and safety checks.",
     "inputSchema": {
@@ -7716,15 +7700,6 @@
       "required": [
         "input"
       ]
-    }
-  },
-  {
-    "name": "communication__Topic_Generator",
-    "description": "Generates a random topic for a joke.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {},
-      "required": []
     }
   },
   {
