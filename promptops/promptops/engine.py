@@ -19,6 +19,82 @@ from jinja2.sandbox import SandboxedEnvironment
 from promptops import console
 from promptops.utils import load_yaml, PROMPTS_DIR
 
+def get_workspace_audit_dir() -> str:
+    return os.environ.get("PROMPTOPS_WORKSPACE_AUDIT", "/app/workspace_audit")
+
+def get_signing_key() -> bytes:
+    key_env = os.environ.get("AUDIT_SIGNING_KEY")
+    if key_env:
+        return key_env.encode("utf-8")
+    
+    audit_base = get_workspace_audit_dir()
+    key_file = os.path.join(audit_base, ".signing_key")
+    if os.path.exists(key_file):
+        try:
+            with open(key_file, "rb") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+            
+    os.makedirs(audit_base, exist_ok=True)
+    try:
+        key = b"FDA_21_CFR_PART_11_SECURE_HMAC_KEY_2026"
+        with open(key_file, "wb") as f:
+            f.write(key)
+        return key
+    except Exception:
+        return b"FDA_21_CFR_PART_11_SECURE_HMAC_KEY_2026"
+
+
+def redact_sensitive_data(val: Any) -> Any:
+    if isinstance(val, dict):
+        return {k: redact_sensitive_data(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [redact_sensitive_data(item) for item in val]
+    elif isinstance(val, str):
+        val = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED_SSN]', val)
+        val = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[REDACTED_EMAIL]', val)
+        val = re.sub(r'(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', '[REDACTED_PHONE]', val)
+        val = re.sub(r'\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b', '[REDACTED_DATE]', val)
+        return val
+    return val
+
+
+def requires_signed_audit(workflow_data: dict) -> bool:
+    kb_path = "/app/promptops/regulatory_kb.yaml"
+    standards = []
+    if os.path.exists(kb_path):
+        try:
+            with open(kb_path, 'r', encoding='utf-8') as f:
+                kb_data = yaml.safe_load(f) or {}
+                standards = list(kb_data.get("standards", {}).keys())
+        except Exception:
+            pass
+            
+    if not standards:
+        standards = ["21 CFR Part 11", "21 CFR 820", "CDISC CDASH", "ISO 14971"]
+        
+    metadata = workflow_data.get("metadata", {}) or {}
+    domain = str(metadata.get("domain", "")).lower()
+    topic = str(metadata.get("topic", "")).lower()
+    tags = [str(t).lower() for t in metadata.get("tags", []) or []]
+    name = str(workflow_data.get("name", "")).lower()
+    desc = str(workflow_data.get("description", "")).lower()
+    
+    if domain == "clinical" or "clinical" in tags or "clinical" in topic:
+        return True
+        
+    for std in standards:
+        std_lower = std.lower()
+        if (std_lower in name or 
+            std_lower in desc or 
+            std_lower in domain or 
+            std_lower in topic or 
+            any(std_lower in t for t in tags)):
+            return True
+            
+    return False
+
 logger = logging.getLogger(__name__)
 
 class KeepUndefined(Undefined):
@@ -317,6 +393,10 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
     if not workflow_data:
         return None
 
+    is_signed_audit = requires_signed_audit(workflow_data)
+    if is_signed_audit:
+        logger.info("Compliance Triggered: Workflow requires cryptographically signed audit trail (21 CFR Part 11).")
+
     defined_steps = set()
     if strict_mode and 'testData' not in workflow_data:
         logger.warning(f"Strict Mode: Workflow '{workflow_data.get('name', 'Untitled')}' is missing 'testData' field.")
@@ -378,7 +458,49 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
         step_id = step['step_id']
         
         if execution_counts[step_id] >= max_iterations:
-            logger.error(f"Loop Limit Exceeded: Step '{step_id}' has been executed {execution_counts[step_id]} times. Terminating workflow.")
+            msg = f"Loop Limit Exceeded: Step '{step_id}' has been executed {execution_counts[step_id]} times. Terminating workflow."
+            logger.error(msg)
+            workflow_state.setdefault("warnings", []).append(msg)
+            workflow_state.setdefault("errors", []).append("Loop Limit Exceeded")
+            
+            if is_signed_audit:
+                try:
+                    import hmac
+                    from datetime import datetime
+                    
+                    redacted_state = redact_sensitive_data({
+                        "workflow_state": workflow_state,
+                        "execution_counts": execution_counts,
+                        "next_step_id": None,
+                        "warnings": workflow_state.get("warnings", []),
+                        "errors": workflow_state.get("errors", [])
+                    })
+                    redacted_state_json = json.dumps(redacted_state, sort_keys=True)
+                    timestamp = datetime.now().isoformat()
+                    payload_to_sign = f"{run_id}|||{step_id}|||{execution_counts[step_id]}|||{timestamp}|||{redacted_state_json}"
+                    key = get_signing_key()
+                    signature = hmac.new(key, payload_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+                    
+                    audit_dir = os.path.join(get_workspace_audit_dir(), run_id)
+                    os.makedirs(audit_dir, exist_ok=True)
+                    
+                    checkpoint_file_audit = os.path.join(audit_dir, f"checkpoint_loop_exceeded_{step_id}_{execution_counts[step_id]}.json")
+                    sig_file_audit = os.path.join(audit_dir, f"checkpoint_loop_exceeded_{step_id}_{execution_counts[step_id]}.sig")
+                    
+                    with open(checkpoint_file_audit, 'w', encoding='utf-8') as f:
+                        f.write(redacted_state_json)
+                        
+                    with open(sig_file_audit, 'w', encoding='utf-8') as f:
+                        json.dump({
+                            "run_id": run_id,
+                            "step_id": step_id,
+                            "iteration": execution_counts[step_id],
+                            "timestamp": timestamp,
+                            "signature": signature,
+                            "algorithm": "HMAC-SHA256"
+                        }, f)
+                except Exception as e:
+                    logger.warning(f"Failed to save loop exceeded checkpoint: {e}")
             raise Exception("Loop Limit Exceeded")
             
         prompt_file = step['prompt_file']
@@ -411,14 +533,60 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
         logger.debug(f"Resolved inputs: {list(prompt_inputs.keys())}")
         console.step_header(f"Simulating Step: {step_id} (Iteration {execution_counts[step_id] + 1})")
 
-        if is_workflow:
-            logger.info(f"Executing nested workflow: {prompt_file}")
-            # Ensure we pass the checkpoint variables implicitly if needed?
-            # Actually just recursively run
-            sub_workflow_state = run_workflow(prompt_file, prompt_inputs, verbose=verbose, strict_mode=strict_mode, chaos_mode=chaos_mode, fidelity_report=fidelity_report)
-            output = sub_workflow_state
-        else:
-            output = simulate_prompt_execution(prompt_data, prompt_inputs, prompt_file=prompt_file, strict_mode=strict_mode, chaos_mode=chaos_mode, fidelity_report=fidelity_report)
+        try:
+            if is_workflow:
+                logger.info(f"Executing nested workflow: {prompt_file}")
+                # Ensure we pass the checkpoint variables implicitly if needed?
+                # Actually just recursively run
+                sub_workflow_state = run_workflow(prompt_file, prompt_inputs, verbose=verbose, strict_mode=strict_mode, chaos_mode=chaos_mode, fidelity_report=fidelity_report)
+                output = sub_workflow_state
+            else:
+                output = simulate_prompt_execution(prompt_data, prompt_inputs, prompt_file=prompt_file, strict_mode=strict_mode, chaos_mode=chaos_mode, fidelity_report=fidelity_report)
+        except Exception as e:
+            msg = f"Step '{step_id}' failed: {e}"
+            logger.warning(msg)
+            workflow_state.setdefault("warnings", []).append(msg)
+            workflow_state.setdefault("errors", []).append(str(e))
+            
+            if is_signed_audit:
+                try:
+                    import hmac
+                    from datetime import datetime
+                    
+                    redacted_state = redact_sensitive_data({
+                        "workflow_state": workflow_state,
+                        "execution_counts": execution_counts,
+                        "next_step_id": None,
+                        "warnings": workflow_state.get("warnings", []),
+                        "errors": workflow_state.get("errors", [])
+                    })
+                    redacted_state_json = json.dumps(redacted_state, sort_keys=True)
+                    timestamp = datetime.now().isoformat()
+                    payload_to_sign = f"{run_id}|||{step_id}|||{execution_counts[step_id]}|||{timestamp}|||{redacted_state_json}"
+                    key = get_signing_key()
+                    signature = hmac.new(key, payload_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+                    
+                    audit_dir = os.path.join(get_workspace_audit_dir(), run_id)
+                    os.makedirs(audit_dir, exist_ok=True)
+                    
+                    checkpoint_file_audit = os.path.join(audit_dir, f"checkpoint_failed_{step_id}_{execution_counts[step_id]}.json")
+                    sig_file_audit = os.path.join(audit_dir, f"checkpoint_failed_{step_id}_{execution_counts[step_id]}.sig")
+                    
+                    with open(checkpoint_file_audit, 'w', encoding='utf-8') as f:
+                        f.write(redacted_state_json)
+                        
+                    with open(sig_file_audit, 'w', encoding='utf-8') as f:
+                        json.dump({
+                            "run_id": run_id,
+                            "step_id": step_id,
+                            "iteration": execution_counts[step_id],
+                            "timestamp": timestamp,
+                            "signature": signature,
+                            "algorithm": "HMAC-SHA256"
+                        }, f)
+                except Exception as e2:
+                    logger.warning(f"Failed to save failed step checkpoint: {e2}")
+            raise
 
         if step_id not in workflow_state['steps']:
             workflow_state['steps'][step_id] = {'output': output, 'history': [output], 'iterations': 1}
@@ -474,6 +642,47 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
                     "execution_counts": execution_counts,
                     "next_step_id": current_step_id
                 }, f)
+            if is_signed_audit:
+                t_start = time.time()
+                import hmac
+                from datetime import datetime
+                
+                timestamp = datetime.now().isoformat()
+                
+                redacted_state = redact_sensitive_data({
+                    "workflow_state": workflow_state,
+                    "execution_counts": execution_counts,
+                    "next_step_id": current_step_id,
+                    "warnings": workflow_state.get("warnings", []),
+                    "errors": workflow_state.get("errors", [])
+                })
+                redacted_state_json = json.dumps(redacted_state, sort_keys=True)
+                
+                payload_to_sign = f"{run_id}|||{step_id}|||{execution_counts[step_id]}|||{timestamp}|||{redacted_state_json}"
+                key = get_signing_key()
+                signature = hmac.new(key, payload_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+                
+                audit_dir = os.path.join(get_workspace_audit_dir(), run_id)
+                os.makedirs(audit_dir, exist_ok=True)
+                
+                checkpoint_file_audit = os.path.join(audit_dir, f"checkpoint_{step_id}_{execution_counts[step_id]}.json")
+                sig_file_audit = os.path.join(audit_dir, f"checkpoint_{step_id}_{execution_counts[step_id]}.sig")
+                
+                with open(checkpoint_file_audit, 'w', encoding='utf-8') as f:
+                    f.write(redacted_state_json)
+                    
+                with open(sig_file_audit, 'w', encoding='utf-8') as f:
+                    json.dump({
+                        "run_id": run_id,
+                        "step_id": step_id,
+                        "iteration": execution_counts[step_id],
+                        "timestamp": timestamp,
+                        "signature": signature,
+                        "algorithm": "HMAC-SHA256"
+                    }, f)
+                    
+                duration_ms = (time.time() - t_start) * 1000
+                logger.debug(f"Signature generated in {duration_ms:.2f} ms")
         except Exception as e:
             logger.warning(f"Failed to save checkpoint: {e}")
 
@@ -484,3 +693,94 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
             logger.warning(f"Failed to clean up checkpoint directory: {e}")
 
     return workflow_state
+
+
+def verify_audit_trail(audit_dir: Optional[str] = None) -> bool:
+    import glob
+    from promptops import console
+    import hmac
+    import hashlib
+    
+    if audit_dir is None:
+        audit_dir = get_workspace_audit_dir()
+        
+    console.step_header(f"Starting Cryptographic Audit Trail Verification on directory: {audit_dir}")
+    if not os.path.exists(audit_dir):
+        console.error(f"Audit directory '{audit_dir}' does not exist.")
+        return False
+        
+    all_ok = True
+    run_dirs = [d for d in glob.glob(os.path.join(audit_dir, "*")) if os.path.isdir(d)]
+    
+    if not run_dirs:
+        console.warn("No audit trail runs found in the workspace directory.")
+        return True
+        
+    for run_path in run_dirs:
+        run_id = os.path.basename(run_path)
+        console.info(f"Scanning Run ID: {run_id} ...")
+        
+        # Find all checkpoint json files (including normal, failed, and loop_exceeded checkpoints)
+        checkpoint_files = glob.glob(os.path.join(run_path, "checkpoint_*.json"))
+        # Sort files to check them in order of execution
+        checkpoint_files.sort()
+        
+        if not checkpoint_files:
+            console.warn(f"  No checkpoints found in run {run_id}")
+            continue
+            
+        run_ok = True
+        for state_file in checkpoint_files:
+            base_name = os.path.basename(state_file)
+            sig_file = state_file.replace(".json", ".sig")
+            
+            if not os.path.exists(sig_file):
+                console.error(f"  RED: Companion signature file missing for checkpoint {base_name}!")
+                run_ok = False
+                all_ok = False
+                continue
+                
+            try:
+                # Read state data
+                with open(state_file, 'r', encoding='utf-8') as f:
+                    state_content = f.read()
+                
+                # Read signature file
+                with open(sig_file, 'r', encoding='utf-8') as f:
+                    sig_data = json.load(f)
+                    
+                # Reconstruct payload and verify
+                step_id = sig_data.get("step_id")
+                iteration = sig_data.get("iteration")
+                timestamp = sig_data.get("timestamp")
+                signature = sig_data.get("signature")
+                
+                # Check for sensitive data (it should already be redacted)
+                redacted_content = redact_sensitive_data(state_content)
+                if redacted_content != state_content:
+                    console.error(f"  RED: Raw sensitive data found in unredacted state file {base_name}!")
+                    run_ok = False
+                    all_ok = False
+                    continue
+                
+                key = get_signing_key()
+                payload_to_sign = f"{run_id}|||{step_id}|||{iteration}|||{timestamp}|||{redacted_content}"
+                expected_sig = hmac.new(key, payload_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+                
+                if hmac.compare_digest(expected_sig, signature):
+                    console.info(f"  GREEN: Checkpoint {base_name} signature is intact and valid (Timestamp: {timestamp}).")
+                else:
+                    console.error(f"  RED: Cryptographic signature mismatch for checkpoint {base_name}! State has been modified.")
+                    run_ok = False
+                    all_ok = False
+            except Exception as e:
+                console.error(f"  RED: Exception verifying checkpoint {base_name}: {e}")
+                run_ok = False
+                all_ok = False
+                
+        if run_ok:
+            console.info(f"Run ID {run_id}: VERIFICATION PASSED (GREEN)\n")
+        else:
+            console.error(f"Run ID {run_id}: VERIFICATION FAILED (RED)\n")
+            
+    return all_ok

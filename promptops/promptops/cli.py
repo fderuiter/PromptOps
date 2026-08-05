@@ -60,6 +60,10 @@ def get_parser():
     # Verify
     subparsers.add_parser("verify", help="Run the central verification script locally")
 
+    # Verify Audit
+    verify_audit_parser = subparsers.add_parser("verify-audit", help="Verify cryptographically signed audit trails in corporate workspace folders")
+    verify_audit_parser.add_argument("--dir", help="Directory containing signed audit trails", default="/app/workspace_audit")
+
     # Validate
     validate_parser = subparsers.add_parser("validate", help="Validate prompt files")
     validate_parser.add_argument("--dir", help="Directory containing prompts", default=".")
@@ -147,6 +151,10 @@ def main():
         except Exception as e:
             logger.error(f"Failed to execute verification script: {e}")
             sys.exit(1)
+    elif args.command == "verify-audit":
+        from promptops.engine import verify_audit_trail
+        success = verify_audit_trail(args.dir)
+        sys.exit(0 if success else 1)
     elif args.command == "validate":
         success = validate_prompts(args.dir, strict=args.strict, files=args.files, skip_semantic=args.skip_semantic)
         sys.exit(0 if success else 1)
