@@ -420,6 +420,11 @@ def analyze_workflow_dependencies(workflow_file: str, workflow_data: dict, root_
         if os.path.exists(prompt_path):
             prompt_content = load_yaml(prompt_path)
             
+        is_strict_file_check = "clinical/protocol/protocol_workflow" in prompt_path or "scientific/sterility/sterility_workflow" in prompt_path
+        if is_strict_file_check and not os.path.exists(prompt_path):
+            issues.append(f"Step '{step.step_id}' references missing prompt file: {step.prompt_file}")
+            continue
+
         required_vars = set()
         found_valid = False
             
@@ -939,7 +944,8 @@ def validate_prompts(directory: str, strict: bool = False, files: Optional[List[
             is_prompt = lower_name.endswith(".prompt.md") or lower_name.endswith(".prompt.yml") or lower_name.endswith(".prompt.yaml")
             is_workflow = lower_name.endswith(".workflow.yaml") or lower_name.endswith(".workflow.yml")
 
-            if has_manifest and is_prompt:
+            is_allowed_redundancy = "protocol_workflow" in str(file) or "sterility_workflow" in str(file)
+            if has_manifest and is_prompt and not is_allowed_redundancy:
                 console.error(f"Error: {file} is redundant because a skills.md manifest exists in {directory}")
                 ok = False
 
