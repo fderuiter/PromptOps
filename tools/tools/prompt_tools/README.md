@@ -45,9 +45,9 @@ A comprehensive 7-stage pipeline designed to analyze a codebase's architecture. 
 7. Unified Architecture Review (Master Prompt)
 
 ### Prompt Optimizer
-**File:** [`L5_prompt_optimizer.prompt.yaml`](./L5_prompt_optimizer.prompt.yaml)
+**File:** [`skills.md`](./skills.md)
 
-A recursive meta-prompt that iteratively improves a given instruction set. It drafts a version, critiques it, rewrites it, and repeats the process until a quality score is met.
+A recursive meta-prompt that iteratively improves a given instruction set. It drafts a version, critiques it, rewrites it, and repeats the process until a quality score is met. This skill is consolidated within the package's skills manifest.
 
 ### Refactor & Re-index Agent
 **File:** [`L5_refactor-reindex-prompts.md`](./L5_refactor-reindex-prompts.md)
