@@ -128,11 +128,11 @@ description: A simple two-step workflow to generate a topic and write a joke.
 inputs: []
 steps:
   - step_id: get_topic
-    prompt_file: prompts/communication/entertainment/joke_workflow/01_topic_generator.prompt.yaml
+    prompt_file: tests/resources/joke_workflow/01_topic_generator.prompt.yaml
     map_inputs: {}
 
   - step_id: write_joke
-    prompt_file: prompts/communication/entertainment/joke_workflow/02_joke_writer.prompt.yaml
+    prompt_file: tests/resources/joke_workflow/02_joke_writer.prompt.yaml
     map_inputs:
       topic: "{{steps.get_topic.output}}"
 testData:
