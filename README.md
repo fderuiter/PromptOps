@@ -124,11 +124,12 @@ To run all validation checks (YAML linting, schema validation, documentation ind
 ```
 
 This script runs the following checks:
-- `cleanup_mac_files`: Removes macOS metadata files (`._*`) to ensure a clean state.
-- `check_prompts`: Verifies file naming conventions and directory structure.
-- `validate_prompt_schema`: Ensures prompts follow the required schema (e.g., `messages`, `testData`).
+- `promptops validate`: Enforces strict schemas, naming conventions, and updates modification timestamps.
+- `yamllint`: Lints YAML syntax and formatting.
+- `pytest`: Runs the Python unit test suite.
+- `ruff`: Checks Python script styles and boundaries.
 - `check_broken_links`: Scans for broken internal links in documentation.
-- `yamllint`: Lints YAML files for formatting.
+- Doc drift, dead code, and snippet simulation checks.
 
 It is recommended to run this script before committing changes.
 

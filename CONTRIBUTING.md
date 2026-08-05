@@ -82,10 +82,12 @@ Run the master script from the repository root:
 ```
 
 **What this script does:**
-*   `cleanup_mac_files`: Removes hidden macOS files (`._*`) that break parsing.
-*   `check_prompts`: Validates naming conventions and directory structures.
-*   `validate_prompt_schema`: Ensures your YAML matches the Pydantic schema (checks for missing fields or empty `testData`).
-*   `yamllint`: Checks for formatting issues.
+*   `promptops validate`: Enforces strict schemas, naming conventions, and updates modification timestamps.
+*   `yamllint`: Lints YAML syntax and formatting.
+*   `pytest`: Runs the Python unit test suite.
+*   `ruff`: Checks Python script styles and boundaries.
+*   `check_broken_links`: Scans for broken internal links in documentation.
+*   Doc drift, dead code, and snippet simulation checks.
 
 ### Step 4: Submit Your Pull Request
 

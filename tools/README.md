@@ -28,5 +28,5 @@ Use the **Prompt Optimizer** to improve your prompt's quality:
 
 ## 📚 Detailed Documentation
 
-- **[Developer Scripts (Python)](tools/scripts/README.md)**: Full API reference for `validate_prompt_schema.py`, etc.
+- **[Developer Scripts (Python)](tools/scripts/README.md)**: Full API reference for utility scripts like broken link checker, overview generator, etc.
 - **[Prompt Engineering Tools](tools/prompt_tools/README.md)**: Guide for using the meta-prompts to maintain the repo.

@@ -260,7 +260,7 @@ Before committing, validate your prompts:
 ./scripts/validate_prompts.sh
 
 # Just validate schema
-python3 tools/tools/scripts/validate_prompt_schema.py
+uv run promptops validate
 
 # Check YAML syntax (matches both .yaml and .yml extensions)
 yamllint prompts/

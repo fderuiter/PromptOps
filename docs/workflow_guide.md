@@ -225,7 +225,7 @@ Common issues when building workflows:
 
 ### "YAML Syntax Error"
 **Cause:** Incorrect indentation or invalid YAML structure.
-**Fix:** Use a YAML linter or `python3 tools/tools/scripts/validate_prompt_schema.py` to check your files.
+**Fix:** Use a YAML linter or run the unified validation tool `uv run promptops validate` to check your files.
 
 ---
 
