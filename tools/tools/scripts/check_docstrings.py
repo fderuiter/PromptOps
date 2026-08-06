@@ -45,7 +45,8 @@ def main():
     """Missing docstring."""
     directories = [
         "promptops/promptops",
-        "tools/tools/scripts"
+        "tools/tools/scripts",
+        "studio/studio/helpers"
     ]
     
     passed = True
