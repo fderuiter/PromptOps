@@ -1,0 +1,19 @@
+extend = "../../ruff.toml"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "D",    # pydocstyle
+]
+ignore = [
+    "D200", # One-line docstring should fit on one line
+    "D205", # 1 blank line required between summary line and description
+    "D212", # Multi-line docstring summary should start at the first line
+    "D415", # First line should end with a period, question mark, or exclamation point
+    "E501", # Line too long (handled by formatting)
+]
+
+[lint.pydocstyle]
+convention = "google"
