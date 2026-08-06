@@ -13,36 +13,41 @@ python3 tools/tools/scripts/inject_test_data.py
 
 from pathlib import Path
 import re
+import sys
 
 from promptops.utils import iter_workflow_files, load_yaml, save_yaml
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 workflows = iter_workflow_files(ROOT_DIR)
 
-for wf in workflows:
-    data = load_yaml(wf)
-    
-    if 'testData' not in data:
-        print(f"Injecting testData into {wf}")
+try:
+    for wf in workflows:
+        data = load_yaml(wf)
         
-        # Determine required inputs
-        required_vars = set()
-        for step in data.get('steps', []):
-            for map_k, map_v in step.get('map_inputs', {}).items():
-                if isinstance(map_v, str):
-                    matches = re.findall(r'\{\{\s*inputs\.([\w\-]+)\s*\}\}', map_v)
-                    for m in matches:
-                        required_vars.add(m)
-        
-        inputs = {}
-        for var in required_vars:
-            inputs[var] = "Sample " + var
+        if 'testData' not in data:
+            print(f"Injecting testData into {wf}")
             
-        data['testData'] = [
-            {
-                "inputs": inputs
-            }
-        ]
-        
-        save_yaml(wf, data)
+            # Determine required inputs
+            required_vars = set()
+            for step in data.get('steps', []):
+                for map_k, map_v in step.get('map_inputs', {}).items():
+                    if isinstance(map_v, str):
+                        matches = re.findall(r'\{\{\s*inputs\.([\w\-]+)\s*\}\}', map_v)
+                        for m in matches:
+                            required_vars.add(m)
+            
+            inputs = {}
+            for var in required_vars:
+                inputs[var] = "Sample " + var
+                
+            data['testData'] = [
+                {
+                    "inputs": inputs
+                }
+            ]
+            
+            save_yaml(wf, data)
+except Exception as e:
+    print(f"Aborting: failed to process workflow {wf}: {e}", file=sys.stderr)
+    sys.exit(1)
 

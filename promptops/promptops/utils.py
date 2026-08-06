@@ -182,110 +182,105 @@ def deep_merge(base: Any, override: Any) -> Any:
 def load_yaml(path: Union[str, Path], raw: bool = False) -> Dict[str, Any]:
     """Missing docstring."""
     path_obj = Path(path)
+    text = path_obj.read_text(encoding="utf-8")
+    
+    inherited_config: Dict[str, Any] = {}
+    macros_text = ""
+    
     try:
-        text = path_obj.read_text(encoding="utf-8")
-        
-        inherited_config: Dict[str, Any] = {}
-        macros_text = ""
-        
-        try:
-            # Build hierarchy
-            base_dir = None
-            resolved_path = path_obj.resolve()
-            if str(PROMPTS_DIR.resolve()) in str(resolved_path):
-                base_dir = PROMPTS_DIR.resolve()
-            elif str(WORKFLOWS_DIR.resolve()) in str(resolved_path):
-                base_dir = WORKFLOWS_DIR.resolve()
-                
-            if base_dir:
-                current = path_obj.parent.resolve()
-                hierarchy = []
-                while current != base_dir and base_dir in current.parents:
-                    hierarchy.append(current)
-                    current = current.parent
-                hierarchy.append(base_dir)
-                hierarchy.reverse()
-                
-                for d in hierarchy:
-                    # Collect macros
-                    for j2_file in sorted(d.glob("*.j2")):
-                        if j2_file.is_file():
-                            macros_text += j2_file.read_text(encoding="utf-8") + "\n"
-                    for jinja_file in sorted(d.glob("*.jinja")):
-                        if jinja_file.is_file():
-                            macros_text += jinja_file.read_text(encoding="utf-8") + "\n"
-                            
-                    # Merge configuration
-                    for cfg_name in ("config.yaml", "_config.yaml"):
-                        cfg_path = d / cfg_name
-                        if cfg_path.is_file():
-                            try:
-                                cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-                                inherited_config = deep_merge(inherited_config, cfg)
-                            except Exception:
-                                pass
-        except Exception:
-            pass
-
-        if not raw:
-            # To match identical validation and execution inheritance, we use PROMPTS_DIR as base
-            # for prompts, or the file's parent for generic files.
-            # But tools/scripts/utils.py used PROMPTS_DIR directly for all inheritance:
-            # env = _get_jinja_env()  (which hardcodes PROMPTS_DIR)
-            from promptops.engine import get_jinja_env
-            env = get_jinja_env(base_dir=str(PROMPTS_DIR))
-            full_text = macros_text + text if macros_text else text
-            template = env.from_string(full_text)
-            rendered_text = template.render()
-        else:
-            rendered_text = text
+        # Build hierarchy
+        base_dir = None
+        resolved_path = path_obj.resolve()
+        if str(PROMPTS_DIR.resolve()) in str(resolved_path):
+            base_dir = PROMPTS_DIR.resolve()
+        elif str(WORKFLOWS_DIR.resolve()) in str(resolved_path):
+            base_dir = WORKFLOWS_DIR.resolve()
             
-        if rendered_text is None:
-            rendered_text = ""
+        if base_dir:
+            current = path_obj.parent.resolve()
+            hierarchy = []
+            while current != base_dir and base_dir in current.parents:
+                hierarchy.append(current)
+                current = current.parent
+            hierarchy.append(base_dir)
+            hierarchy.reverse()
             
-        if isinstance(rendered_text, str):
-            rendered_text = rendered_text.lstrip()
-            if rendered_text.startswith("---"):
-                parts = rendered_text.split("---", 2)
-                if len(parts) >= 3:
-                    data = yaml.safe_load(parts[1]) or {}
-                    
-                    if inherited_config:
-                        data = deep_merge(inherited_config, data)
+            for d in hierarchy:
+                # Collect macros
+                for j2_file in sorted(d.glob("*.j2")):
+                    if j2_file.is_file():
+                        macros_text += j2_file.read_text(encoding="utf-8") + "\n"
+                for jinja_file in sorted(d.glob("*.jinja")):
+                    if jinja_file.is_file():
+                        macros_text += jinja_file.read_text(encoding="utf-8") + "\n"
                         
-                    content = parts[2]
-                    
-                    messages = data.get("messages", [])
-                    blocks = re.split(r'^##\s+(.*)$', content, flags=re.MULTILINE | re.IGNORECASE)
-                    for i in range(1, len(blocks), 2):
-                        header = blocks[i].strip()
-                        body = blocks[i+1].strip()
-                        if not body:
-                            continue
-                            
-                        role = header.lower()
-                        if role == 'purpose':
-                            role = 'system'
-                        elif role == 'instructions':
-                            role = 'user'
-                            
-                        messages.append({"role": role, "content": body})
-                    data["messages"] = messages
-                    return data
-                    
-            data = yaml.safe_load(rendered_text) or {}
-            if isinstance(data, dict) and inherited_config:
-                data = deep_merge(inherited_config, data)
-            return data
-        elif isinstance(rendered_text, dict):
-            if inherited_config:
-                return deep_merge(inherited_config, rendered_text)
-            return rendered_text
-        return {}
-    except FileNotFoundError:
-        return {}
+                # Merge configuration
+                for cfg_name in ("config.yaml", "_config.yaml"):
+                    cfg_path = d / cfg_name
+                    if cfg_path.is_file():
+                        try:
+                            cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+                            inherited_config = deep_merge(inherited_config, cfg)
+                        except Exception:
+                            pass
     except Exception:
-        return {}
+        pass
+
+    if not raw:
+        # To match identical validation and execution inheritance, we use PROMPTS_DIR as base
+        # for prompts, or the file's parent for generic files.
+        # But tools/scripts/utils.py used PROMPTS_DIR directly for all inheritance:
+        # env = _get_jinja_env()  (which hardcodes PROMPTS_DIR)
+        from promptops.engine import get_jinja_env
+        env = get_jinja_env(base_dir=str(PROMPTS_DIR))
+        full_text = macros_text + text if macros_text else text
+        template = env.from_string(full_text)
+        rendered_text = template.render()
+    else:
+        rendered_text = text
+        
+    if rendered_text is None:
+        rendered_text = ""
+        
+    if isinstance(rendered_text, str):
+        rendered_text = rendered_text.lstrip()
+        if rendered_text.startswith("---"):
+            parts = rendered_text.split("---", 2)
+            if len(parts) >= 3:
+                data = yaml.safe_load(parts[1]) or {}
+                
+                if inherited_config:
+                    data = deep_merge(inherited_config, data)
+                    
+                content = parts[2]
+                
+                messages = data.get("messages", [])
+                blocks = re.split(r'^##\s+(.*)$', content, flags=re.MULTILINE | re.IGNORECASE)
+                for i in range(1, len(blocks), 2):
+                    header = blocks[i].strip()
+                    body = blocks[i+1].strip()
+                    if not body:
+                        continue
+                        
+                    role = header.lower()
+                    if role == 'purpose':
+                        role = 'system'
+                    elif role == 'instructions':
+                        role = 'user'
+                        
+                    messages.append({"role": role, "content": body})
+                data["messages"] = messages
+                return data
+                
+        data = yaml.safe_load(rendered_text) or {}
+        if isinstance(data, dict) and inherited_config:
+            data = deep_merge(inherited_config, data)
+        return data
+    elif isinstance(rendered_text, dict):
+        if inherited_config:
+            return deep_merge(inherited_config, rendered_text)
+        return rendered_text
+    return {}
 
 def save_yaml(path: Union[str, Path], data: Dict[str, Any]) -> None:
     """Missing docstring."""

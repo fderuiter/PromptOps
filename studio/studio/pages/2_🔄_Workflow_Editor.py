@@ -102,8 +102,16 @@ if selected_file == "Create New...":
 else:
     new_file_path = selected_file
     file_path = os.path.join(base_dir, selected_file)
-    data = load_asset_data(file_path)
-    if not data:
+    load_error = None
+    try:
+        data = load_asset_data(file_path)
+    except Exception as e:
+        load_error = e
+        data = {}
+    if load_error is not None:
+        st.error(f"🚨 **Syntax Error / Parsing Failure:** Failed to load workflow asset.\n\n{load_error}")
+        st.stop()
+    elif not data:
         st.stop()
 st.subheader(f"Editing: {selected_file}")
 

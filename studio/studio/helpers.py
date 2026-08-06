@@ -121,11 +121,8 @@ def render_schema_form(
 
 def load_asset_data(file_path: str, raw: bool = True) -> Dict[str, Any]:
     """Loads and returns YAML data. Standardizes error displays."""
-    try:
-        if os.path.exists(file_path):
-            return load_yaml(file_path, raw=raw) or {}
-    except Exception as e:
-        st.error(f"Failed to load file: {e}")
+    if os.path.exists(file_path):
+        return load_yaml(file_path, raw=raw) or {}
     return {}
 
 def validate_and_save_asset(
