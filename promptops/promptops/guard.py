@@ -55,8 +55,61 @@ def guard(prompt_id: str, mode: Literal["fail_fast", "warning"] = "fail_fast") -
                 try:
                     response_text = extract_text(response)
                 except ValueError as e:
-                    logger.warning(str(e))
-                    return response
+                    import hmac
+                    import hashlib
+                    import json
+                    import os
+                    import uuid
+                    from datetime import datetime
+                    from promptops.engine import redact_sensitive_data, get_workspace_audit_dir, get_signing_key
+
+                    timestamp = datetime.now().isoformat()
+                    audit_dir = get_workspace_audit_dir()
+                    key = get_signing_key()
+
+                    if mode == "fail_fast":
+                        state = {
+                            "prompt_id": prompt_id,
+                            "status": "extraction_failure",
+                            "mode": "fail_fast",
+                            "error": str(e),
+                            "timestamp": timestamp
+                        }
+                    else:
+                        stringified_response = str(response)
+                        redacted_text = redact_sensitive_data(stringified_response)
+                        state = {
+                            "prompt_id": prompt_id,
+                            "status": "extraction_failure",
+                            "mode": "warning",
+                            "error": str(e),
+                            "timestamp": timestamp,
+                            "fallback_content": redacted_text
+                        }
+
+                    state_json = json.dumps(state, sort_keys=True)
+                    payload_to_sign = f"guard_failure|||{prompt_id}|||{timestamp}|||{state_json}"
+                    signature = hmac.new(key, payload_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                    failure_id = str(uuid.uuid4())
+                    checkpoint_file = os.path.join(audit_dir, "guard_failures", f"{failure_id}.json")
+                    sig_file = os.path.join(audit_dir, "guard_failures", f"{failure_id}.sig")
+
+                    os.makedirs(os.path.dirname(checkpoint_file), exist_ok=True)
+                    with open(checkpoint_file, 'w', encoding='utf-8') as f:
+                        f.write(state_json)
+                    with open(sig_file, 'w', encoding='utf-8') as f:
+                        json.dump({
+                            "timestamp": timestamp,
+                            "signature": signature,
+                            "algorithm": "HMAC-SHA256"
+                        }, f)
+
+                    if mode == "fail_fast":
+                        raise ProomptsValidationError(f"Extraction failed: {e}")
+                    else:
+                        logger.warning(f"Extraction failed: {e}. Falling back to redacted warning mode output.")
+                        return redacted_text
                 
                 # 3. Load prompt schema from file
                 prompt_path = ROOT / "prompts" / f"{prompt_id}.prompt.yaml"
