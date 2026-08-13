@@ -5,6 +5,7 @@ Provides asset loading, rendering, validation, and session-state management.
 
 import os
 import json
+import yaml
 from typing import Dict, Any, Type, List, Callable, Union
 import streamlit as st
 import pandas as pd
@@ -86,6 +87,45 @@ def render_schema_form(
         else:
             label = field_name
 
+        def resolve_ref(schema_part: Dict[str, Any]) -> Dict[str, Any]:
+            if not isinstance(schema_part, dict):
+                return {}
+            ref = schema_part.get("$ref")
+            if ref and ref.startswith("#/$defs/"):
+                def_name = ref.split("/")[-1]
+                return schema.get("$defs", {}).get(def_name, {})
+            return schema_part
+
+        field_info = resolve_ref(field_info)
+
+        # Resolve field type and constraints
+        field_type = field_info.get("type")
+        minimum = field_info.get("minimum")
+        maximum = field_info.get("maximum")
+
+        subschemas = []
+        if "anyOf" in field_info:
+            subschemas.extend(field_info["anyOf"])
+        if "oneOf" in field_info:
+            subschemas.extend(field_info["oneOf"])
+        if "allOf" in field_info:
+            subschemas.extend(field_info["allOf"])
+
+        for sub in subschemas:
+            sub_resolved = resolve_ref(sub)
+            if not field_type and sub_resolved.get("type"):
+                field_type = sub_resolved.get("type")
+            if minimum is None and "minimum" in sub_resolved:
+                minimum = sub_resolved["minimum"]
+            if maximum is None and "maximum" in sub_resolved:
+                maximum = sub_resolved["maximum"]
+
+        if not field_type:
+            if "properties" in field_info:
+                field_type = "object"
+            elif "items" in field_info:
+                field_type = "array"
+
         if field_name == "metadata":
             st.subheader("Metadata")
             if "metadata" not in data_dict or not data_dict["metadata"]:
@@ -99,6 +139,7 @@ def render_schema_form(
                         break
 
             for m_key, m_info in meta_schema.items():
+                m_info = resolve_ref(m_info)
                 m_val = data_dict["metadata"].get(m_key, m_info.get("default", ""))
                 m_label = m_info.get("title", m_key)
                 if m_info.get("type") == "boolean":
@@ -117,7 +158,7 @@ def render_schema_form(
                     data_dict["metadata"][m_key] = st.text_input(
                         m_label, value=m_val, key=f"{key_prefix}meta_{m_key}"
                     )
-        elif field_info.get("type") == "string":
+        elif field_type == "string":
             if field_name == "description" or "description" in field_name.lower():
                 data_dict[field_name] = st.text_area(
                     label, value=val, key=f"{key_prefix}{field_name}"
@@ -126,10 +167,260 @@ def render_schema_form(
                 data_dict[field_name] = st.text_input(
                     label, value=val, key=f"{key_prefix}{field_name}"
                 )
-        elif field_info.get("type") == "boolean":
+        elif field_type == "boolean":
             data_dict[field_name] = st.checkbox(
                 label, value=bool(val), key=f"{key_prefix}{field_name}"
             )
+        elif field_type in ("integer", "number"):
+            if minimum is not None:
+                minimum = int(minimum) if field_type == "integer" else float(minimum)
+            if maximum is not None:
+                maximum = int(maximum) if field_type == "integer" else float(maximum)
+            
+            raw_val = data_dict.get(field_name)
+            if raw_val is None or raw_val == "":
+                raw_val = field_info.get("default")
+            
+            if raw_val is None or raw_val == "":
+                if minimum is not None:
+                    default_val = minimum
+                elif maximum is not None:
+                    default_val = maximum
+                else:
+                    default_val = 0 if field_type == "integer" else 0.0
+            else:
+                try:
+                    default_val = int(raw_val) if field_type == "integer" else float(raw_val)
+                except ValueError:
+                    if minimum is not None:
+                        default_val = minimum
+                    elif maximum is not None:
+                        default_val = maximum
+                    else:
+                        default_val = 0 if field_type == "integer" else 0.0
+
+            if minimum is not None and default_val < minimum:
+                default_val = minimum
+            if maximum is not None and default_val > maximum:
+                default_val = maximum
+
+            if minimum is not None and maximum is not None:
+                res_val = st.slider(
+                    label,
+                    min_value=minimum,
+                    max_value=maximum,
+                    value=default_val,
+                    step=1 if field_type == "integer" else 0.1,
+                    key=f"{key_prefix}{field_name}",
+                    help=field_info.get("description")
+                )
+            else:
+                res_val = st.number_input(
+                    label,
+                    min_value=minimum,
+                    max_value=maximum,
+                    value=default_val,
+                    step=1 if field_type == "integer" else 0.1,
+                    key=f"{key_prefix}{field_name}",
+                    help=field_info.get("description")
+                )
+            data_dict[field_name] = res_val
+        elif field_type == "array":
+            item_schema = field_info.get("items", {})
+            item_schema = resolve_ref(item_schema)
+            item_properties = item_schema.get("properties", {})
+            
+            is_array_flat_mappable = True
+            if item_schema.get("type") == "object" or item_properties:
+                for prop_name, prop_info in item_properties.items():
+                    prop_info = resolve_ref(prop_info)
+                    p_type = prop_info.get("type")
+                    if not p_type and "properties" in prop_info:
+                        p_type = "object"
+                    elif not p_type and "items" in prop_info:
+                        p_type = "array"
+                    if p_type in ("object", "array"):
+                        is_array_flat_mappable = False
+                        break
+            else:
+                is_array_flat_mappable = True
+
+            if is_array_flat_mappable:
+                st.write(f"**{label}**")
+                is_object_item = (item_schema.get("type") == "object" or bool(item_properties))
+                raw_val = data_dict.get(field_name, [])
+                if not isinstance(raw_val, list):
+                    raw_val = []
+
+                if is_object_item:
+                    columns = list(item_properties.keys())
+                    if raw_val:
+                        df = pd.DataFrame(raw_val)
+                        for col in columns:
+                            if col not in df.columns:
+                                df[col] = None
+                        df = df[columns]
+                    else:
+                        df = pd.DataFrame(columns=columns)
+                    
+                    edited_df = st.data_editor(
+                        df,
+                        num_rows="dynamic",
+                        key=f"{key_prefix}{field_name}_array_editor",
+                        use_container_width=True
+                    )
+                    boolean_cols = [k for k, prop in item_properties.items() if resolve_ref(prop).get("type") == "boolean"]
+                    sanitized_records = sanitize_dataframe_records(edited_df, boolean_cols=boolean_cols)
+                    
+                    def is_empty_row(row):
+                        for k, v in row.items():
+                            if v is not None and not pd.isna(v):
+                                if isinstance(v, str) and v.strip() == "":
+                                    continue
+                                return False
+                        return True
+                    
+                    res_val = [row for row in sanitized_records if not is_empty_row(row)]
+                    data_dict[field_name] = res_val
+                else:
+                    if raw_val:
+                        df = pd.DataFrame([{"Value": x} for x in raw_val])
+                    else:
+                        df = pd.DataFrame(columns=["Value"])
+                    
+                    edited_df = st.data_editor(
+                        df,
+                        num_rows="dynamic",
+                        key=f"{key_prefix}{field_name}_array_editor",
+                        use_container_width=True
+                    )
+                    records = edited_df.to_dict("records")
+                    res_val = []
+                    for row in records:
+                        v = row.get("Value")
+                        if v is not None and not pd.isna(v) and str(v).strip() != "":
+                            item_type = item_schema.get("type", "string")
+                            if item_type == "integer":
+                                try:
+                                    res_val.append(int(v))
+                                except ValueError:
+                                    pass
+                            elif item_type == "number":
+                                try:
+                                    res_val.append(float(v))
+                                except ValueError:
+                                    pass
+                            elif item_type == "boolean":
+                                res_val.append(str(v).lower() in ("true", "1", "yes"))
+                            else:
+                                res_val.append(str(v))
+                    data_dict[field_name] = res_val
+            else:
+                st.write(f"**{label} (YAML)**")
+                raw_val = data_dict.get(field_name)
+                try:
+                    yaml_str = yaml.safe_dump(raw_val, default_flow_style=False, sort_keys=False) if raw_val is not None else ""
+                except Exception:
+                    yaml_str = ""
+                    
+                edited_yaml = st.text_area(
+                    f"Enter YAML for {label}",
+                    value=yaml_str,
+                    key=f"{key_prefix}{field_name}_yaml_textarea",
+                    height=200
+                )
+                if edited_yaml.strip():
+                    try:
+                        data_dict[field_name] = yaml.safe_load(edited_yaml)
+                    except Exception as e:
+                        st.error(f"Invalid YAML syntax in {label}: {e}")
+                else:
+                    data_dict[field_name] = None
+        elif field_type == "object":
+            properties = field_info.get("properties", {})
+            is_obj_flat_mappable = True
+            if properties:
+                for prop_name, prop_info in properties.items():
+                    prop_info = resolve_ref(prop_info)
+                    p_type = prop_info.get("type")
+                    if not p_type and "properties" in prop_info:
+                        p_type = "object"
+                    elif not p_type and "items" in prop_info:
+                        p_type = "array"
+                    if p_type in ("object", "array"):
+                        is_obj_flat_mappable = False
+                        break
+            else:
+                is_obj_flat_mappable = False
+
+            if is_obj_flat_mappable:
+                st.write(f"**{label}**")
+                raw_val = data_dict.get(field_name, {}) or {}
+                if not isinstance(raw_val, dict):
+                    raw_val = {}
+                flat_list = []
+                for prop_name, prop_info in properties.items():
+                    prop_info = resolve_ref(prop_info)
+                    p_val = raw_val.get(prop_name)
+                    if p_val is None:
+                        p_val = prop_info.get("default", "")
+                    flat_list.append({
+                        "Parameter": prop_name,
+                        "Value": str(p_val) if p_val is not None else ""
+                    })
+                df = pd.DataFrame(flat_list)
+                edited_df = st.data_editor(
+                    df,
+                    num_rows="fixed",
+                    key=f"{key_prefix}{field_name}_object_editor",
+                    use_container_width=True
+                )
+                records = edited_df.to_dict("records")
+                new_val = {}
+                for row in records:
+                    k = row.get("Parameter")
+                    v = row.get("Value")
+                    if k:
+                        k = str(k).strip()
+                        prop_info = resolve_ref(properties.get(k, {}))
+                        p_type = prop_info.get("type")
+                        if v is None or str(v).strip() == "":
+                            new_val[k] = None
+                        elif p_type == "integer":
+                            try:
+                                new_val[k] = int(v)
+                            except ValueError:
+                                new_val[k] = None
+                        elif p_type == "number":
+                            try:
+                                new_val[k] = float(v)
+                            except ValueError:
+                                new_val[k] = None
+                        elif p_type == "boolean":
+                            new_val[k] = str(v).lower() in ("true", "1", "yes")
+                        else:
+                            new_val[k] = str(v)
+                data_dict[field_name] = new_val
+            else:
+                st.write(f"**{label} (YAML)**")
+                raw_val = data_dict.get(field_name)
+                try:
+                    yaml_str = yaml.safe_dump(raw_val, default_flow_style=False, sort_keys=False) if raw_val is not None else ""
+                except Exception:
+                    yaml_str = ""
+                edited_yaml = st.text_area(
+                    f"Enter YAML for {label}",
+                    value=yaml_str,
+                    key=f"{key_prefix}{field_name}_yaml_textarea",
+                    height=200
+                )
+                if edited_yaml.strip():
+                    try:
+                        data_dict[field_name] = yaml.safe_load(edited_yaml)
+                    except Exception as e:
+                        st.error(f"Invalid YAML syntax in {label}: {e}")
+                else:
+                    data_dict[field_name] = None
 
         return data_dict
 
