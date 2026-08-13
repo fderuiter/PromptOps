@@ -8,7 +8,7 @@ from promptops.validation import validate_prompts
 from promptops.simulation import simulate_prompt
 from promptops.documentation import generate_docs
 from promptops.init import init_project
-from promptops.agent import generate_config, discovery_report
+from promptops.agent import generate_config, discovery_report, register_agent
 from promptops.utils import load_yaml, ROOT, iter_prompt_files
 from promptops.engine import run_workflow
 from promptops import console
@@ -100,6 +100,9 @@ def get_parser():
     agent_discovery = agent_subparsers.add_parser("discovery", help="Show tool discovery and override report")
     agent_discovery.add_argument("--dir", help="Directory containing prompts", default="prompts")
 
+    agent_register = agent_subparsers.add_parser("register", help="Interactively register the MCP server with Claude Desktop")
+    agent_register.add_argument("--dir", help="Directory containing prompts", default="prompts")
+
     # Vibe
     vibe_parser = subparsers.add_parser("vibe", help="Run full-fidelity vibe audit")
     vibe_parser.add_argument("--budget-cap", type=float, default=10.0, help="Maximum budget for LLM API calls")
@@ -187,6 +190,8 @@ def main():
             generate_config(args.dir)
         elif args.agent_command == "discovery":
             discovery_report(args.dir)
+        elif args.agent_command == "register":
+            register_agent(args.dir)
     elif args.command == "vibe":
         from promptops.vibe import run_vibe_audit
         run_vibe_audit(budget_cap=args.budget_cap, coverage=args.coverage)
