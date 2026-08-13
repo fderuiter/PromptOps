@@ -389,6 +389,8 @@ def enrich_file(file_path: Path, dry_run: bool = False) -> bool:
         if var.get("description") == "TODO" or not var.get("description"):
             print(f"  Suggesting description for variable '{var_name}'...")
             suggested_desc = suggest_variable_description(var_name, combined_context)
+            if not suggested_desc.startswith("[Automated]"):
+                suggested_desc = f"[Automated] {suggested_desc}"
             print(f"    Suggested: {suggested_desc}")
 
             # Create new var dict to preserve order and fields
@@ -405,6 +407,8 @@ def enrich_file(file_path: Path, dry_run: bool = False) -> bool:
         if v_name not in existing_names:
             print(f"  Adding missing variable '{v_name}' from template...")
             new_desc = suggest_variable_description(v_name, combined_context)
+            if not new_desc.startswith("[Automated]"):
+                new_desc = f"[Automated] {new_desc}"
             enriched_vars.append({
                 "name": v_name,
                 "description": new_desc,

@@ -84,6 +84,28 @@ class PromptMetadata(BaseMetadata):
     requirements: Optional[List[str]] = Field(None)
     maturity: Optional[str] = Field(None)
 
+class StrategicParameterConfig(BaseModel):
+    """Missing docstring."""
+    name: str = Field(...)
+    blocked_patterns: List[str] = Field(...)
+
+class StrategicConfig(BaseModel):
+    """Missing docstring."""
+    strategic_parameters: List[StrategicParameterConfig] = Field(...)
+
+def load_strategic_config() -> Optional[StrategicConfig]:
+    """Missing docstring."""
+    config_path = Path(__file__).parent / "strategic_config.yaml"
+    if not config_path.exists():
+        return None
+    try:
+        data = load_yaml(str(config_path))
+        if data:
+            return StrategicConfig(**data)
+    except Exception as e:
+        console.warn(f"Failed to load strategic config: {e}")
+    return None
+
 class InputSchema(BaseModel):
     """Missing docstring."""
     type: str = Field("object")
@@ -800,35 +822,102 @@ def validate_prompts(directory: str, strict: bool = False, files: Optional[List[
         if file_path.parent == base_path:
             dirs_to_check.add(base_path)
 
-        if file_path.parent.name in NAMING_RULES and not file_path.name.endswith(".workflow.yaml") and not file_path.name.endswith(".workflow.yml"):
-            if not NAMING_RULES[file_path.parent.name].match(file_path.name):
-                console.error(f"{file_path} does not match required pattern for {file_path.parent.name}")
-                ok = False
-
         content = load_yaml(str(file_path))
         if not content:
             ok = False
             continue
-            
-        if content.get('metadata', {}).get('status') == 'draft':
-            continue
-            
-        try:
-            schema = PromptSchema(**content)
-        except ValidationError as e:
-            console.error(f"Validation error in {file_path}:\n{e}")
-            ok = False
-            continue
+
+        status = content.get('metadata', {}).get('status', 'active')
+        if hasattr(status, 'value'):
+            status = status.value
+        status_str = str(status).lower() if status else 'active'
+
+        if file_path.parent.name in NAMING_RULES and not file_path.name.endswith(".workflow.yaml") and not file_path.name.endswith(".workflow.yml"):
+            if not NAMING_RULES[file_path.parent.name].match(file_path.name):
+                if status_str == 'draft':
+                    console.warn(f"Draft warning: {file_path} does not match required pattern for {file_path.parent.name}")
+                else:
+                    console.error(f"{file_path} does not match required pattern for {file_path.parent.name}")
+                    ok = False
+
+        schema = None
+        if status_str == 'draft':
+            try:
+                schema = PromptSchema(**content)
+            except ValidationError as e:
+                console.warn(f"Validation warning in draft prompt {file_path}:\n{e}")
+        else:
+            try:
+                schema = PromptSchema(**content)
+            except ValidationError as e:
+                console.error(f"Validation error in {file_path}:\n{e}")
+                ok = False
+                continue
+
+        # Check strategic parameters if configured
+        strat_config = load_strategic_config()
+        strat_params = {}
+        if strat_config:
+            for param in strat_config.strategic_parameters:
+                strat_params[param.name.lower()] = [p.lower() for p in param.blocked_patterns]
+
+        variables_to_check = []
+        if schema:
+            for var in schema.variables:
+                variables_to_check.append((var.name, var.description))
+        else:
+            raw_vars = content.get('variables', [])
+            if isinstance(raw_vars, list):
+                for var in raw_vars:
+                    if isinstance(var, dict):
+                        variables_to_check.append((var.get('name'), var.get('description')))
+
+        for var_name, var_desc in variables_to_check:
+            if not var_name:
+                continue
+            var_name_lower = var_name.lower()
+            if var_name_lower in strat_params:
+                blocked_patterns = strat_params[var_name_lower]
+                desc_str = (var_desc or "").strip()
+                desc_lower = desc_str.lower()
+                
+                has_placeholder = False
+                reason = ""
+                if not desc_str:
+                    has_placeholder = True
+                    reason = "description is empty"
+                else:
+                    for pattern in blocked_patterns:
+                        if pattern.lower() in desc_lower:
+                            has_placeholder = True
+                            reason = f"contains blocked pattern '{pattern}'"
+                            break
+                
+                if has_placeholder:
+                    if status_str == 'draft':
+                        console.warn(
+                            f"Draft prompt validation warning in {file_path}: "
+                            f"Strategic variable '{var_name}' description ({reason}): '{desc_str or '<empty>'}'"
+                        )
+                    else:
+                        console.error(
+                            f"Validation error in {file_path}: "
+                            f"Strategic variable '{var_name}' description ({reason}): '{desc_str or '<empty>'}'"
+                        )
+                        ok = False
 
         # Check mapped requirement IDs against the master list
-        if schema.metadata and schema.metadata.requirements is not None:
+        if schema and schema.metadata and schema.metadata.requirements is not None:
             from promptops.utils import load_requirements
             master_requirements = load_requirements()
             invalid_ids = [req_id for req_id in schema.metadata.requirements if req_id not in master_requirements]
             if invalid_ids:
-                console.error(f"Validation error in {file_path}:")
-                console.error(f"  Requirement ID(s) missing from master list: {invalid_ids}")
-                ok = False
+                if status_str == 'draft':
+                    console.warn(f"Validation warning in {file_path}: Requirement ID(s) missing from master list: {invalid_ids}")
+                else:
+                    console.error(f"Validation error in {file_path}:")
+                    console.error(f"  Requirement ID(s) missing from master list: {invalid_ids}")
+                    ok = False
 
         if strict:
             issues = []
@@ -846,8 +935,11 @@ def validate_prompts(directory: str, strict: bool = False, files: Optional[List[
         name = content.get('name')
         if name:
             if name in seen_names:
-                console.error(f"Duplicate name '{name}' found in:\n  - {seen_names[name]}\n  - {file_path}")
-                ok = False
+                if status_str == 'draft':
+                    console.warn(f"Duplicate name '{name}' found in draft:\n  - {seen_names[name]}\n  - {file_path}")
+                else:
+                    console.error(f"Duplicate name '{name}' found in:\n  - {seen_names[name]}\n  - {file_path}")
+                    ok = False
             else:
                 seen_names[name] = str(file_path)
 

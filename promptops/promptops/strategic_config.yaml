@@ -1,0 +1,22 @@
+strategic_parameters:
+  - name: "system_context"
+    blocked_patterns:
+      - "todo"
+      - "placeholder"
+      - "generic fallback"
+      - "automated fallback"
+      - "[automated]"
+  - name: "user_query"
+    blocked_patterns:
+      - "todo"
+      - "placeholder"
+      - "generic fallback"
+      - "automated fallback"
+      - "[automated]"
+  - name: "user_input"
+    blocked_patterns:
+      - "todo"
+      - "placeholder"
+      - "generic fallback"
+      - "automated fallback"
+      - "[automated]"
