@@ -1,10 +1,8 @@
 import sys
 import json
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 from promptops.agent import resolve_claude_desktop_config_path, register_agent
 

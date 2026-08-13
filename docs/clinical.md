@@ -6,12 +6,16 @@ title: Clinical
 
 ## Prompts
 - [Cardiologist Review](prompts/clinical/safety/clinical_consensus_arbitration_workflow/02_cardiologist_review.prompt.md)
+- [Clinical-Trial Protocol Creator](prompts/clinical/protocol/protocol_workflow/01_clinical_trial_protocol_creator.prompt.md)
 - [Jinja-Based Arbitration](prompts/clinical/safety/clinical_consensus_arbitration_workflow/05_arbitration.prompt.md)
 - [Manual Clinical Audit Fallback](prompts/clinical/safety/clinical_consensus_arbitration_workflow/06_manual_audit.prompt.md)
 - [Meta-Orchestrator Clinical Review](prompts/clinical/safety/clinical_consensus_arbitration_workflow/04_meta_orchestrator.prompt.md)
 - [Oncologist Review](prompts/clinical/safety/clinical_consensus_arbitration_workflow/01_oncologist_review.prompt.md)
 - [Output Validated Clinical Data](prompts/clinical/safety/clinical_consensus_arbitration_workflow/07_validated_data.prompt.md)
+- [Protocol Reviewer and Gap-Analysis Coach](prompts/clinical/protocol/protocol_workflow/03_protocol_reviewer_gap_analysis_coach.prompt.md)
+- [Protocol Section Refinement](prompts/clinical/protocol/protocol_workflow/04_protocol_section_refinement.prompt.md)
 - [Toxicologist Review](prompts/clinical/safety/clinical_consensus_arbitration_workflow/03_toxicologist_review.prompt.md)
+- [Ultimate SOP Architect](prompts/clinical/protocol/protocol_workflow/02_ultimate_sop_architect.prompt.md)
 
 ## Workflows
 - [Adjudication Workflow](workflows/adjudication.md)

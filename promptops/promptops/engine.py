@@ -20,9 +20,11 @@ from promptops import console
 from promptops.utils import load_yaml, PROMPTS_DIR
 
 def get_workspace_audit_dir() -> str:
+    """Get the absolute workspace directory where cryptographically signed audit trails are stored."""
     return os.environ.get("PROMPTOPS_WORKSPACE_AUDIT", "/app/workspace_audit")
 
 def get_signing_key() -> bytes:
+    """Retrieve the cryptographic signing key for secure HMAC signatures."""
     key_env = os.environ.get("AUDIT_SIGNING_KEY")
     if key_env:
         return key_env.encode("utf-8")
@@ -47,6 +49,7 @@ def get_signing_key() -> bytes:
 
 
 def redact_sensitive_data(val: Any) -> Any:
+    """Redact sensitive PII and HIPAA-regulated data recursively from the inputs/outputs."""
     if isinstance(val, dict):
         return {k: redact_sensitive_data(v) for k, v in val.items()}
     elif isinstance(val, list):
@@ -61,6 +64,7 @@ def redact_sensitive_data(val: Any) -> Any:
 
 
 def requires_signed_audit(workflow_data: dict) -> bool:
+    """Determine if a workflow topic or metadata triggers mandatory cryptographically signed audit trails (21 CFR Part 11 compliance)."""
     kb_path = "/app/promptops/regulatory_kb.yaml"
     standards = []
     if os.path.exists(kb_path):
@@ -696,6 +700,7 @@ def run_workflow(workflow_file: str, initial_inputs: Dict[str, Any], verbose: bo
 
 
 def verify_audit_trail(audit_dir: Optional[str] = None) -> bool:
+    """Verify cryptographically signed audit trails in corporate workspace folders."""
     import glob
     from promptops import console
     import hmac

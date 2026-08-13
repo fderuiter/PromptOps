@@ -5,9 +5,9 @@ This document is auto-generated from the CLI definition. Do not edit manually.
 ## `promptops`
 
 ```text
-usage: cli.py [-h]
-              {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
-              ...
+usage: promptops [-h]
+                 {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
+                 ...
 
 PromptOps Toolkit CLI
 
@@ -35,7 +35,7 @@ options:
 ### `promptops init`
 
 ```text
-usage: cli.py init [-h]
+usage: promptops init [-h]
 
 options:
   -h, --help  show this help message and exit
@@ -45,7 +45,7 @@ options:
 ### `promptops verify`
 
 ```text
-usage: cli.py verify [-h]
+usage: promptops verify [-h]
 
 options:
   -h, --help  show this help message and exit
@@ -55,7 +55,7 @@ options:
 ### `promptops verify-audit`
 
 ```text
-usage: cli.py verify-audit [-h] [--dir DIR]
+usage: promptops verify-audit [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -66,8 +66,8 @@ options:
 ### `promptops validate`
 
 ```text
-usage: cli.py validate [-h] [--dir DIR] [--strict] [--skip-semantic]
-                       [files ...]
+usage: promptops validate [-h] [--dir DIR] [--strict] [--skip-semantic]
+                          [files ...]
 
 positional arguments:
   files            Specific files to validate and format (updates
@@ -84,9 +84,9 @@ options:
 ### `promptops simulate`
 
 ```text
-usage: cli.py simulate [-h] [-f FILE_FLAG] -i DATA [--strict] [--chaos] [-v]
-                       [--json] [--no-color]
-                       [file]
+usage: promptops simulate [-h] [-f FILE_FLAG] -i DATA [--strict] [--chaos]
+                          [-v] [--json] [--no-color]
+                          [file]
 
 positional arguments:
   file                  Path to prompt file
@@ -107,8 +107,8 @@ options:
 ### `promptops docs`
 
 ```text
-usage: cli.py docs [-h] [--dir DIR] [--out OUT] [--repo-url REPO_URL]
-                   [--branch BRANCH] [--check]
+usage: promptops docs [-h] [--dir DIR] [--out OUT] [--repo-url REPO_URL]
+                      [--branch BRANCH] [--check]
 
 options:
   -h, --help           show this help message and exit
@@ -123,7 +123,7 @@ options:
 ### `promptops agent`
 
 ```text
-usage: cli.py agent [-h] {config,discovery,register} ...
+usage: promptops agent [-h] {config,discovery,register} ...
 
 positional arguments:
   {config,discovery,register}
@@ -140,7 +140,7 @@ options:
 #### `promptops agent config`
 
 ```text
-usage: cli.py agent config [-h] [--dir DIR]
+usage: promptops agent config [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -151,7 +151,7 @@ options:
 #### `promptops agent discovery`
 
 ```text
-usage: cli.py agent discovery [-h] [--dir DIR]
+usage: promptops agent discovery [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -162,7 +162,7 @@ options:
 #### `promptops agent register`
 
 ```text
-usage: cli.py agent register [-h] [--dir DIR]
+usage: promptops agent register [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -173,7 +173,7 @@ options:
 ### `promptops vibe`
 
 ```text
-usage: cli.py vibe [-h] [--budget-cap BUDGET_CAP] [--coverage COVERAGE]
+usage: promptops vibe [-h] [--budget-cap BUDGET_CAP] [--coverage COVERAGE]
 
 options:
   -h, --help            show this help message and exit
@@ -186,9 +186,9 @@ options:
 ### `promptops workflow`
 
 ```text
-usage: cli.py workflow [-h] [-i INPUT] [-f INPUTS_FILE] [-v] [--strict]
-                       [--chaos] [--no-color] [--json]
-                       workflow_file
+usage: promptops workflow [-h] [-i INPUT] [-f INPUTS_FILE] [-v] [--strict]
+                          [--chaos] [--no-color] [--json]
+                          workflow_file
 
 positional arguments:
   workflow_file         Path to the .workflow.yaml file.
@@ -210,7 +210,7 @@ options:
 ### `promptops search`
 
 ```text
-usage: cli.py search [-h] [-v] query
+usage: promptops search [-h] [-v] query
 
 positional arguments:
   query          Keyword to search for
@@ -224,7 +224,7 @@ options:
 ### `promptops export-schemas`
 
 ```text
-usage: cli.py export-schemas [-h] [--out-dir OUT_DIR]
+usage: promptops export-schemas [-h] [--out-dir OUT_DIR]
 
 options:
   -h, --help         show this help message and exit

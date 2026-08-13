@@ -1,19 +1,12 @@
-import os
 import json
 import yaml
 import pytest
-import hmac
-import hashlib
-from datetime import datetime
-from pathlib import Path
 
 from promptops.engine import (
     requires_signed_audit,
     redact_sensitive_data,
-    get_signing_key,
     run_workflow,
-    verify_audit_trail,
-    get_workspace_audit_dir
+    verify_audit_trail
 )
 
 def test_requires_signed_audit():
