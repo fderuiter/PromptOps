@@ -272,3 +272,84 @@ def test_prompt_editor_creates_new_subfolder_automatically():
     target_file.unlink()
     target_dir.rmdir()
 
+
+def test_prompt_editor_saves_strategic_metadata():
+    at = AppTest.from_file(str(STUDIO_DIR / "studio/pages" / "1_📝_Prompt_Editor.py"))
+    at.run(timeout=15)
+    assert not at.exception
+
+    # Find and set folder and file name inputs
+    at.selectbox(key="prompt_folder_selectbox").set_value(".").run()
+    at.text_input(key="prompt_file_name_input").set_value("test_strategic").run()
+
+    # Set the strategic metadata fields
+    at.text_input(key="meta_strategic_positioning").set_value("High-value healthcare automation").run()
+    at.text_input(key="meta_target_audience").set_value("Clinical practitioners").run()
+    at.text_input(key="meta_core_mission").set_value("Streamline clinical operations").run()
+    
+    # Click save
+    save_btn = None
+    for btn in at.button:
+        if btn.label == "Save Changes":
+            save_btn = btn
+            break
+            
+    assert save_btn is not None
+    save_btn.click().run()
+    assert not at.exception
+    
+    # Check if file was created and contains correct metadata
+    test_file = ROOT_DIR / "prompts" / "test_strategic.prompt.md"
+    assert test_file.exists()
+    
+    from promptops.utils import load_yaml
+    saved_data = load_yaml(str(test_file))
+    assert saved_data is not None
+    assert "metadata" in saved_data
+    assert saved_data["metadata"]["strategic_positioning"] == "High-value healthcare automation"
+    assert saved_data["metadata"]["target_audience"] == "Clinical practitioners"
+    assert saved_data["metadata"]["core_mission"] == "Streamline clinical operations"
+
+    test_file.unlink()
+
+
+def test_workflow_editor_saves_strategic_metadata():
+    at = AppTest.from_file(str(STUDIO_DIR / "studio/pages" / "2_🔄_Workflow_Editor.py"))
+    at.run(timeout=15)
+    assert not at.exception
+
+    # Find and set folder and file name inputs
+    at.selectbox(key="wf_folder_selectbox").set_value(".").run()
+    at.text_input(key="wf_file_name_input").set_value("test_wf_strategic").run()
+
+    # Set the strategic metadata fields
+    at.text_input(key="meta_strategic_positioning").set_value("Global scale coordination").run()
+    at.text_input(key="meta_target_audience").set_value("Enterprise ops").run()
+    at.text_input(key="meta_core_mission").set_value("Automate complex multi-step workflows").run()
+    
+    # Click save
+    save_btn = None
+    for btn in at.button:
+        if btn.label == "Save Workflow":
+            save_btn = btn
+            break
+            
+    assert save_btn is not None
+    save_btn.click().run()
+    assert not at.exception
+    
+    # Check if file was created and contains correct metadata
+    test_file = ROOT_DIR / "workflows" / "test_wf_strategic.workflow.yaml"
+    assert test_file.exists()
+    
+    from promptops.utils import load_yaml
+    saved_data = load_yaml(str(test_file))
+    assert saved_data is not None
+    assert "metadata" in saved_data
+    assert saved_data["metadata"]["strategic_positioning"] == "Global scale coordination"
+    assert saved_data["metadata"]["target_audience"] == "Enterprise ops"
+    assert saved_data["metadata"]["core_mission"] == "Automate complex multi-step workflows"
+
+    test_file.unlink()
+
+
