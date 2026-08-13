@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from promptops.utils import get_tool_name_mcp
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -15,7 +14,7 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 
-from promptops.utils import load_yaml, extract_template_vars, WORKFLOWS_DIR, PROMPTS_DIR
+from promptops.utils import extract_template_vars, WORKFLOWS_DIR, PROMPTS_DIR
 from promptops.validation import ProomptsValidationError
 
 # Setup basic logging to stderr
@@ -97,7 +96,7 @@ def build_routing_map() -> dict[str, dict[str, Any]]:
     non-overridden tools, guaranteeing zero duplicates and matching reports.
     """
     from promptops.agent import get_tools_info
-    from promptops.utils import get_tool_name_mcp, parse_skill_manifest, load_yaml, PROMPTS_DIR
+    from promptops.utils import get_tool_name_mcp, load_yaml, PROMPTS_DIR
     from pathlib import Path
 
     routing_map = {}

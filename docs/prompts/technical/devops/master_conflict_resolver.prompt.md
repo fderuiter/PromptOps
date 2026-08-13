@@ -1,4 +1,16 @@
 ---
+title: master-conflict-resolver
+---
+
+# master-conflict-resolver
+
+Resolves git merge, rebase, and cherry-pick conflicts logically and syntactically. Use when a git operation halts due to conflicts, files contain `<<<<<<<` markers, or the user asks to "resolve conflicts". Key capabilities: Git state analysis, zdiff3 parsing, 3-way logical synthesis, lockfile regeneration, semantic conflict prevention. Negative triggers: Do NOT use to initiate new feature development, write net-new logic, or perform standard commits.
+
+
+
+
+```yaml
+---
 name: master-conflict-resolver
 version: "1.0.0"
 description: >
@@ -71,3 +83,5 @@ testData:
   - inputs: {}
     expected: "IDENTITY AND PURPOSE"
 evaluators: []
+
+```

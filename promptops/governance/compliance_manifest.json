@@ -1,3 +1,28 @@
 {
-  "2026-06-03T03:34:48.761944+00:00": []
+  "2026-06-03T03:34:48.761944+00:00": [],
+  "2026-08-13T18:09:51.218174+00:00": [
+    {
+      "prompt_file": "prompts/scientific/sterility/sterility_workflow/02_regulatory_gap_analysis_comparator.prompt.md",
+      "prompt_version": "0.1.0",
+      "prompt_hash": "a2ebd333551d0740ea3313632b09fe76259ccf7df7852ca671a5068c762bb5bb",
+      "timestamp": "2026-08-13T18:09:51.218174+00:00",
+      "regulatory_identifiers": [
+        "ISO 22441:2022",
+        "ISO 11737",
+        "ISO 11137"
+      ],
+      "compliance_mappings": []
+    },
+    {
+      "prompt_file": "prompts/scientific/sterility/sterility_workflow/01_sterility_validation_protocol_builder.prompt.md",
+      "prompt_version": "0.1.0",
+      "prompt_hash": "74651236992c5103f9d2ec804b970825ebe900bed20b1a2d81efa2cf314d1813",
+      "timestamp": "2026-08-13T18:09:51.218174+00:00",
+      "regulatory_identifiers": [
+        "ISO 11737",
+        "ISO 11137"
+      ],
+      "compliance_mappings": []
+    }
+  ]
 }
