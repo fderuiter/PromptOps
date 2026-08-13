@@ -74,6 +74,9 @@ class BaseMetadata(BaseModel):
     """Missing docstring."""
     domain: str = Field(...)
     status: Optional[StatusLevel] = Field(default=StatusLevel.ACTIVE)
+    strategic_positioning: Optional[str] = Field(default=None)
+    target_audience: Optional[str] = Field(default=None)
+    core_mission: Optional[str] = Field(default=None)
 
 class PromptMetadata(BaseMetadata):
     """Missing docstring."""
