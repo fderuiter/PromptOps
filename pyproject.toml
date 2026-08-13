@@ -26,6 +26,7 @@ studio = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "tools/tools/scripts"]
+pythonpath = ["."]
 norecursedirs = ["experimental", "workshop", "workshops", "draft", "drafts", "temp_drafts"]
 addopts = "--ignore=experimental --ignore=workshop --ignore=workshops --ignore=draft --ignore=drafts --ignore=temp_drafts"
 
