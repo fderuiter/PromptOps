@@ -5,16 +5,18 @@ This document is auto-generated from the CLI definition. Do not edit manually.
 ## `promptops`
 
 ```text
-usage: promptops [-h]
-                 {init,verify,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
-                 ...
+usage: cli.py [-h]
+              {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
+              ...
 
 PromptOps Toolkit CLI
 
 positional arguments:
-  {init,verify,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
+  {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
     init                Initialize PromptOps in the current repository
     verify              Run the central verification script locally
+    verify-audit        Verify cryptographically signed audit trails in
+                        corporate workspace folders
     validate            Validate prompt files
     simulate            Simulate a prompt
     docs                Generate prompt documentation
@@ -33,7 +35,7 @@ options:
 ### `promptops init`
 
 ```text
-usage: promptops init [-h]
+usage: cli.py init [-h]
 
 options:
   -h, --help  show this help message and exit
@@ -43,18 +45,29 @@ options:
 ### `promptops verify`
 
 ```text
-usage: promptops verify [-h]
+usage: cli.py verify [-h]
 
 options:
   -h, --help  show this help message and exit
 
 ```
 
+### `promptops verify-audit`
+
+```text
+usage: cli.py verify-audit [-h] [--dir DIR]
+
+options:
+  -h, --help  show this help message and exit
+  --dir DIR   Directory containing signed audit trails
+
+```
+
 ### `promptops validate`
 
 ```text
-usage: promptops validate [-h] [--dir DIR] [--strict] [--skip-semantic]
-                          [files ...]
+usage: cli.py validate [-h] [--dir DIR] [--strict] [--skip-semantic]
+                       [files ...]
 
 positional arguments:
   files            Specific files to validate and format (updates
@@ -71,9 +84,9 @@ options:
 ### `promptops simulate`
 
 ```text
-usage: promptops simulate [-h] [-f FILE_FLAG] -i DATA [--strict] [--chaos]
-                          [-v] [--json] [--no-color]
-                          [file]
+usage: cli.py simulate [-h] [-f FILE_FLAG] -i DATA [--strict] [--chaos] [-v]
+                       [--json] [--no-color]
+                       [file]
 
 positional arguments:
   file                  Path to prompt file
@@ -94,8 +107,8 @@ options:
 ### `promptops docs`
 
 ```text
-usage: promptops docs [-h] [--dir DIR] [--out OUT] [--repo-url REPO_URL]
-                      [--branch BRANCH] [--check]
+usage: cli.py docs [-h] [--dir DIR] [--out OUT] [--repo-url REPO_URL]
+                   [--branch BRANCH] [--check]
 
 options:
   -h, --help           show this help message and exit
@@ -110,22 +123,24 @@ options:
 ### `promptops agent`
 
 ```text
-usage: promptops agent [-h] {config,discovery} ...
+usage: cli.py agent [-h] {config,discovery,register} ...
 
 positional arguments:
-  {config,discovery}
-    config            Generate MCP configuration for agent clients
-    discovery         Show tool discovery and override report
+  {config,discovery,register}
+    config              Generate MCP configuration for agent clients
+    discovery           Show tool discovery and override report
+    register            Interactively register the MCP server with Claude
+                        Desktop
 
 options:
-  -h, --help          show this help message and exit
+  -h, --help            show this help message and exit
 
 ```
 
 #### `promptops agent config`
 
 ```text
-usage: promptops agent config [-h] [--dir DIR]
+usage: cli.py agent config [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -136,7 +151,18 @@ options:
 #### `promptops agent discovery`
 
 ```text
-usage: promptops agent discovery [-h] [--dir DIR]
+usage: cli.py agent discovery [-h] [--dir DIR]
+
+options:
+  -h, --help  show this help message and exit
+  --dir DIR   Directory containing prompts
+
+```
+
+#### `promptops agent register`
+
+```text
+usage: cli.py agent register [-h] [--dir DIR]
 
 options:
   -h, --help  show this help message and exit
@@ -147,7 +173,7 @@ options:
 ### `promptops vibe`
 
 ```text
-usage: promptops vibe [-h] [--budget-cap BUDGET_CAP] [--coverage COVERAGE]
+usage: cli.py vibe [-h] [--budget-cap BUDGET_CAP] [--coverage COVERAGE]
 
 options:
   -h, --help            show this help message and exit
@@ -160,9 +186,9 @@ options:
 ### `promptops workflow`
 
 ```text
-usage: promptops workflow [-h] [-i INPUT] [-f INPUTS_FILE] [-v] [--strict]
-                          [--chaos] [--no-color] [--json]
-                          workflow_file
+usage: cli.py workflow [-h] [-i INPUT] [-f INPUTS_FILE] [-v] [--strict]
+                       [--chaos] [--no-color] [--json]
+                       workflow_file
 
 positional arguments:
   workflow_file         Path to the .workflow.yaml file.
@@ -184,7 +210,7 @@ options:
 ### `promptops search`
 
 ```text
-usage: promptops search [-h] [-v] query
+usage: cli.py search [-h] [-v] query
 
 positional arguments:
   query          Keyword to search for
@@ -198,7 +224,7 @@ options:
 ### `promptops export-schemas`
 
 ```text
-usage: promptops export-schemas [-h] [--out-dir OUT_DIR]
+usage: cli.py export-schemas [-h] [--out-dir OUT_DIR]
 
 options:
   -h, --help         show this help message and exit
