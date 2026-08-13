@@ -37,3 +37,4 @@ search.json
 
 # Simulation Checkpoints
 .checkpoints/
+workspace_audit/

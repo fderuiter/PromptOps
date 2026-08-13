@@ -6,15 +6,17 @@ This document is auto-generated from the CLI definition. Do not edit manually.
 
 ```text
 usage: promptops [-h]
-                 {init,verify,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
+                 {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
                  ...
 
 PromptOps Toolkit CLI
 
 positional arguments:
-  {init,verify,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
+  {init,verify,verify-audit,validate,simulate,docs,agent,vibe,workflow,search,export-schemas,generate-cli-docs}
     init                Initialize PromptOps in the current repository
     verify              Run the central verification script locally
+    verify-audit        Verify cryptographically signed audit trails in
+                        corporate workspace folders
     validate            Validate prompt files
     simulate            Simulate a prompt
     docs                Generate prompt documentation
@@ -47,6 +49,17 @@ usage: promptops verify [-h]
 
 options:
   -h, --help  show this help message and exit
+
+```
+
+### `promptops verify-audit`
+
+```text
+usage: promptops verify-audit [-h] [--dir DIR]
+
+options:
+  -h, --help  show this help message and exit
+  --dir DIR   Directory containing signed audit trails
 
 ```
 
