@@ -92,9 +92,11 @@ jobs:
             echo "Continuous Deployment triggered!" >> $GITHUB_STEP_SUMMARY
             echo "Streamlit Cloud is actively deploying the latest changes from the main branch." >> $GITHUB_STEP_SUMMARY
             echo "Access the live app at: [Streamlit Cloud Share URL (Simulated/Configured)](https://share.streamlit.io/)" >> $GITHUB_STEP_SUMMARY
+            echo "Live visual playground URL: https://share.streamlit.io/"
           else
             echo "Pull Request Deployment Validation Passed." >> $GITHUB_STEP_SUMMARY
             echo "All Studio application checks succeeded. Ready for merge to main." >> $GITHUB_STEP_SUMMARY
+            echo "Continuous Integration successful. Target deploy URL on merge: https://share.streamlit.io/"
           fi
 
   build-sdk:

@@ -35,12 +35,12 @@ messages:
 
       ## Step 2: Edge-Case Triage
       Handle non-standard files immediately before touching source code:
-      - **Lockfiles:** Execute `git checkout --theirs <lockfile>` (or `--ours` depending on rebase/merge), ensure the manifest (`package.json`) is resolved, then execute the package manager install command (e.g., `npm install`) to mathematically regenerate the lockfile.
+      - **Lockfiles:** Execute `git checkout --theirs [lockfile]` (or `--ours` depending on rebase/merge), ensure the manifest (`package.json`) is resolved, then execute the package manager install command (e.g., `npm install`) to mathematically regenerate the lockfile.
       - **Binary Files:** You cannot merge images or compiled assets. Prompt the user: "Keep 'ours' or 'theirs' for [File]?" and apply `git checkout --ours/theirs` based on their answer.
-      - **Deleted vs. Modified:** If one side deleted a file and the other modified it, search the repository to see if the file was refactored/moved. If moved, port the modifications to the new file. If intentionally deleted, accept the deletion (`git rm <file>`).
+      - **Deleted vs. Modified:** If one side deleted a file and the other modified it, search the repository to see if the file was refactored/moved. If moved, port the modifications to the new file. If intentionally deleted, accept the deletion (`git rm [file]`).
 
       ## Step 3: Chain-of-Thought Logical Synthesis
-      For every standard source code file, open the file and locate the conflict blocks. For EACH block, you MUST perform the following analysis inside a `<thought_process>` block before modifying the file:
+      For every standard source code file, open the file and locate the conflict blocks. For EACH block, you MUST perform the following analysis inside a `[thought_process]` block before modifying the file:
       1. **Read the Base (`|||||||`):** What did this code do originally?
       2. **Read Ours (`<<<<<<< HEAD`):** What is the intent of the current environment's change?
       3. **Read Theirs (`>>>>>>>`):** What is the intent of the incoming environment's change?
@@ -55,13 +55,22 @@ messages:
       3. **Self-Correction:** If the linter or compiler fails, YOU MUST SELF-CORRECT. Do not ask the user to fix syntax errors you created during the merge synthesis. Analyze the compiler error, adjust the code, and re-lint.
 
       ## Step 5: Finalization
-      1. Stage all verified files: `git add <resolved-files>`.
+      1. Stage all verified files: `git add [resolved-files]`.
       2. Output a structured Markdown summary to the user detailing:
          - The files resolved.
          - Any complex logical syntheses you had to perform (explain *why* you chose the strategy you did).
          - The verification commands that passed successfully.
       3. Prompt the user for permission to execute the final command (e.g., `git rebase --continue` or `git commit --no-edit`).
+  - role: user
+    content: "Resolve these conflicts:\n{{conflicts}}"
+variables:
+  - name: conflicts
+    description: "Conflicting file contents or description"
+    required: true
+modelParameters:
+  temperature: 0.5
 testData:
-  - inputs: {}
-    expected: "IDENTITY AND PURPOSE"
+  - inputs:
+      conflicts: "<<<<<<< HEAD\nprint('hello')\n=======\nprint('world')\n>>>>>>> feature"
+    expected: "hello"
 evaluators: []

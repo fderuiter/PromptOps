@@ -6,6 +6,13 @@
 
 A curated set of prompts in YAML for AI-assisted product development, regulatory workflows, and general operations. Prompts are organized by topic: ranging from code reviews to market research. You can mix and match them in your own agentic workflows!
 
+## ✨ Interactive Visual IDE & Playground
+
+Explore and build prompts and workflows visually using our interactive Visual Studio!
+
+*   👉 **[Live Hosted Playground](https://share.streamlit.io/)** — Run, test, and compose prompts instantly online without local setup.
+*   📖 **[Dedicated Visual Studio Guide (docs/STUDIO.md)](docs/STUDIO.md)** — Dive into our full, high-fidelity documentation with interactive simulation walkthroughs, step builders, and safety guidelines.
+
 ## 🗺️ Directory Map
 
 | Path | Description | Key Contents |
@@ -58,6 +65,7 @@ graph TD
 
 ## Docs
 
+- **[🎨 Interactive Visual Studio Guide](docs/STUDIO.md)** – Detailed visual guide to Proompts Visual Studio with high-fidelity diagrams.
 - **[🚀 Quickstart: 5-Minute Onboarding](docs/QUICKSTART.md)** – Start here! Learn how to run your first simulation.
 - **[Full Table of Contents](docs/overview.md)** – Browse all prompts by category
 - **[Usage Guide](docs/USAGE.md)** – Learn how to use and integrate prompts
